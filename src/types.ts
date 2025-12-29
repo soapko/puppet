@@ -29,5 +29,53 @@ export interface BrowserInstance {
   page: Page;
 }
 
+export interface SessionOptions {
+  /** Path to command file. Default: ~/.puppet/commands.json */
+  commandFile?: string;
+  /** Path to result file. Default: ~/.puppet/results.json */
+  resultFile?: string;
+  /** Run browser in headless mode. Default: false */
+  headless?: boolean;
+  /** Browser viewport size */
+  viewport?: {
+    width: number;
+    height: number;
+  };
+}
+
+export type CommandAction =
+  | 'goto'
+  | 'click'
+  | 'type'
+  | 'scroll'
+  | 'screenshot'
+  | 'evaluate'
+  | 'waitFor'
+  | 'getUrl'
+  | 'getTitle'
+  | 'close';
+
+export interface Command {
+  id: string;
+  action: CommandAction;
+  params?: Record<string, unknown>;
+}
+
+export interface CommandResult {
+  id: string;
+  success: boolean;
+  result?: unknown;
+  error?: string;
+}
+
+export interface Session {
+  /** Close the session and browser */
+  close(): Promise<void>;
+  /** Get the current page URL */
+  getUrl(): string;
+  /** Check if session is running */
+  isRunning(): boolean;
+}
+
 // Re-export Playwright types for convenience
 export type { Browser, BrowserContext, Page } from 'playwright';
