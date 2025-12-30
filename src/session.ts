@@ -10,6 +10,15 @@ import type { SessionOptions, Command, CommandResult, Session } from './types.js
 const DEFAULT_COMMAND_FILE = `${homedir()}/.puppet/commands.json`;
 const DEFAULT_RESULT_FILE = `${homedir()}/.puppet/results.json`;
 
+// Simple logger for session debugging
+const log = {
+  info: (msg: string, ...args: unknown[]) => console.log(`[puppet:session] ${msg}`, ...args),
+  error: (msg: string, ...args: unknown[]) => console.error(`[puppet:session] ${msg}`, ...args),
+  debug: (msg: string, ...args: unknown[]) => {
+    if (process.env.PUPPET_DEBUG) console.log(`[puppet:session:debug] ${msg}`, ...args);
+  },
+};
+
 /**
  * Start an interactive browser session that watches for commands
  */
@@ -18,21 +27,26 @@ export async function startSession(options: SessionOptions = {}): Promise<Sessio
   const resultFile = options.resultFile ?? DEFAULT_RESULT_FILE;
 
   // Ensure directories exist
+  log.debug('Creating directories for command/result files');
   await mkdir(dirname(commandFile), { recursive: true });
   await mkdir(dirname(resultFile), { recursive: true });
 
   // Initialize command file if it doesn't exist
   try {
     await readFile(commandFile, 'utf-8');
+    log.debug('Command file exists');
   } catch {
+    log.info('Initializing command file:', commandFile);
     await writeFile(commandFile, JSON.stringify({ id: '', action: 'noop' }, null, 2));
   }
 
   // Launch browser
+  log.info('Launching browser...');
   const { browser, page } = await getBrowser({
     headless: options.headless ?? false,
     viewport: options.viewport,
   });
+  log.info('Browser launched');
 
   const cursor = createCursor(page);
 
@@ -43,6 +57,8 @@ export async function startSession(options: SessionOptions = {}): Promise<Sessio
   // Process a command
   async function processCommand(cmd: Command): Promise<CommandResult> {
     const { id, action, params = {} } = cmd;
+    log.info(`Processing command: ${action} (id: ${id})`);
+    log.debug('Command params:', params);
 
     try {
       let result: unknown = null;
@@ -101,12 +117,15 @@ export async function startSession(options: SessionOptions = {}): Promise<Sessio
           throw new Error(`Unknown action: ${action}`);
       }
 
+      log.info(`Command ${action} completed successfully`);
       return { id, success: true, result };
     } catch (err) {
+      const errorMsg = err instanceof Error ? err.message : String(err);
+      log.error(`Command ${action} failed:`, errorMsg);
       return {
         id,
         success: false,
-        error: err instanceof Error ? err.message : String(err),
+        error: errorMsg,
       };
     }
   }
@@ -122,34 +141,52 @@ export async function startSession(options: SessionOptions = {}): Promise<Sessio
       // Skip if same command or no id
       if (!cmd.id || cmd.id === lastCommandId) return;
 
+      log.debug(`New command detected: ${cmd.action} (id: ${cmd.id})`);
       lastCommandId = cmd.id;
 
       // Process and write result
       const result = await processCommand(cmd);
       await writeFile(resultFile, JSON.stringify(result, null, 2));
+      log.debug('Result written to:', resultFile);
 
       // Handle close command
       if (cmd.action === 'close') {
+        log.info('Close command received, shutting down');
         await cleanup();
       }
-    } catch {
-      // Ignore parse errors - file might be mid-write
+    } catch (err) {
+      // Only log actual errors, not parse errors from mid-write
+      if (err instanceof SyntaxError) {
+        log.debug('Command file parse error (likely mid-write)');
+      } else if (err instanceof Error && err.message.includes('ENOENT')) {
+        log.debug('Command file not found');
+      } else {
+        log.error('Error checking commands:', err);
+      }
     }
   }
 
   // Cleanup function
   async function cleanup() {
+    log.info('Cleaning up session...');
     running = false;
     if (watcher) {
       watcher.close();
       watcher = null;
     }
     await browser.close();
+    log.info('Browser closed');
   }
 
   // Start watching for commands
+  log.info('Starting file watcher on:', commandFile);
   watcher = watch(commandFile, { persistent: true }, () => {
     checkCommands();
+  });
+
+  // Handle watcher errors
+  watcher.on('error', (err) => {
+    log.error('File watcher error:', err);
   });
 
   // Also poll periodically in case watch misses events
@@ -160,6 +197,8 @@ export async function startSession(options: SessionOptions = {}): Promise<Sessio
       clearInterval(pollInterval);
     }
   }, 100);
+
+  log.info('Session ready, waiting for commands...');
 
   // Return session handle
   return {
