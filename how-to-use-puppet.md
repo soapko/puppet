@@ -168,22 +168,28 @@ cat ~/.puppet/results.json
 
 ### Available Commands
 
-| Action            | Params                              | Description                            |
-| ----------------- | ----------------------------------- | -------------------------------------- |
-| `goto`            | `url`                               | Navigate to URL                        |
-| `click`           | `selector`                          | Click element with human-like cursor   |
-| `type`            | `selector`, `text`                  | Type text into input field             |
-| `clear`           | `selector`                          | Clear input field                      |
-| `scroll`          | `direction` (`up`/`down`), `amount` | Scroll page                            |
-| `screenshot`      | `fullPage` (boolean)                | Capture screenshot, returns path       |
-| `evaluate`        | `script`                            | Execute JavaScript, returns result     |
-| `waitFor`         | `selector`, `timeout`               | Wait for element to appear             |
-| `getUrl`          | -                                   | Get current page URL                   |
-| `getTitle`        | -                                   | Get page title                         |
-| `setDialogAction` | `action` (`accept`/`dismiss`)       | Set behavior for alert/confirm dialogs |
-| `getLastDialog`   | -                                   | Get message from last dialog           |
-| `init` / `noop`   | -                                   | No-op, useful for testing connection   |
-| `close`           | -                                   | Close the session                      |
+| Action            | Params                                      | Description                                 |
+| ----------------- | ------------------------------------------- | ------------------------------------------- |
+| `goto`            | `url`                                       | Navigate to URL                             |
+| `click`           | `selector`, `retry?`                        | Click element with human-like cursor        |
+| `type`            | `selector`, `text`, `retry?`                | Type text into input field                  |
+| `clear`           | `selector`                                  | Clear input field                           |
+| `scroll`          | `direction` (`up`/`down`), `amount`         | Scroll page                                 |
+| `screenshot`      | `fullPage` (boolean)                        | Capture screenshot, returns base64          |
+| `evaluate`        | `script`                                    | Execute JavaScript, returns result          |
+| `waitFor`         | `selector`, `timeout?`, `retry?`            | Wait for element to appear                  |
+| `waitForLoaded`   | `selectors?`, `timeout?`, `waitForNetwork?` | Wait for loading indicators to disappear    |
+| `getUrl`          | -                                           | Get current page URL                        |
+| `getTitle`        | -                                           | Get page title                              |
+| `setDialogAction` | `action` (`accept`/`dismiss`)               | Set behavior for alert/confirm dialogs      |
+| `getLastDialog`   | -                                           | Get message from last dialog                |
+| `clearState`      | `includeIndexedDB?`                         | Clear cookies, localStorage, sessionStorage |
+| `uploadFile`      | `selector`, `filePath`                      | Upload file(s) to file input                |
+| `switchToFrame`   | `selector`                                  | Switch context into an iframe               |
+| `switchToMain`    | -                                           | Switch back to main page context            |
+| `getFrames`       | -                                           | List all frames on the page                 |
+| `init` / `noop`   | -                                           | No-op, useful for testing connection        |
+| `close`           | -                                           | Close the session                           |
 
 ### Command/Result Format
 
@@ -215,8 +221,92 @@ cat ~/.puppet/results.json
 {
   "id": "unique-id",
   "success": false,
-  "error": "Element not found: button.submit"
+  "error": "Element not found: button.submit",
+  "screenshotPath": "/Users/you/.puppet/failures/error-1234567890.png"
 }
+```
+
+### Retry Options
+
+Commands that interact with elements (`click`, `type`, `waitFor`) support an optional `retry` parameter for handling flaky elements:
+
+```javascript
+// Retry up to 3 times with exponential backoff
+await sendCommand({
+  action: 'click',
+  params: { selector: '[data-testid="slow-button"]', retry: 3 },
+});
+
+// Custom retry configuration
+await sendCommand({
+  action: 'click',
+  params: {
+    selector: '[data-testid="slow-button"]',
+    retry: { maxAttempts: 5, initialDelay: 200, maxDelay: 3000 },
+  },
+});
+```
+
+### Test Isolation
+
+Clear browser state between tests:
+
+```javascript
+await sendCommand({ action: 'clearState' });
+// Clears cookies, localStorage, sessionStorage
+
+await sendCommand({ action: 'clearState', params: { includeIndexedDB: true } });
+// Also clears IndexedDB
+```
+
+### Working with iframes
+
+```javascript
+// List all frames
+const frames = await sendCommand({ action: 'getFrames' });
+
+// Switch to iframe (e.g., for payment forms)
+await sendCommand({ action: 'switchToFrame', params: { selector: 'iframe[name="payment"]' } });
+
+// Interact within iframe
+await sendCommand({ action: 'type', params: { selector: '#card-number', text: '4242...' } });
+
+// Return to main page
+await sendCommand({ action: 'switchToMain' });
+```
+
+### File Uploads
+
+```javascript
+// Single file
+await sendCommand({
+  action: 'uploadFile',
+  params: { selector: 'input[type="file"]', filePath: '/path/to/file.pdf' },
+});
+
+// Multiple files
+await sendCommand({
+  action: 'uploadFile',
+  params: { selector: '[data-testid="attachments"]', filePath: ['./a.jpg', './b.jpg'] },
+});
+```
+
+### Waiting for Loading States
+
+Wait for common loading indicators to disappear:
+
+```javascript
+// Uses smart defaults (looks for [data-loading], .spinner, .skeleton, etc.)
+await sendCommand({ action: 'waitForLoaded' });
+
+// Custom selectors
+await sendCommand({
+  action: 'waitForLoaded',
+  params: { selectors: ['[data-testid="custom-loader"]'], timeout: 5000 },
+});
+
+// Skip network idle check for speed
+await sendCommand({ action: 'waitForLoaded', params: { waitForNetwork: false } });
 ```
 
 ### Debug Mode

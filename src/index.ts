@@ -7,6 +7,10 @@ export { Cursor, createCursor } from './cursor.js';
 // Interactive session
 export { startSession, sendCommand } from './session.js';
 
+// Utilities
+export { withRetry, executeWithOptionalRetry } from './retry.js';
+export { getElementErrorContext, formatElementError, isElementNotFoundError } from './errors.js';
+
 // Types
 export type {
   BrowserOptions,
@@ -17,6 +21,7 @@ export type {
   CommandAction,
   CommandResult,
   Session,
+  RetryOptions,
   Browser,
   BrowserContext,
   Page,

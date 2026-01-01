@@ -68,10 +68,53 @@ export class Cursor {
   }
 
   /**
+   * Check if element is covered by another element
+   * Returns the covering element's identifier if covered, null if clear
+   */
+  private async checkIfCovered(selector: string): Promise<string | null> {
+    return await this.page.evaluate(sel => {
+      const target = document.querySelector(sel);
+      if (!target) return null;
+
+      const rect = target.getBoundingClientRect();
+      const centerX = rect.left + rect.width / 2;
+      const centerY = rect.top + rect.height / 2;
+
+      const topElement = document.elementFromPoint(centerX, centerY);
+      if (!topElement) return null;
+
+      // Check if the top element is the target or a child of the target
+      if (target.contains(topElement) || target === topElement) {
+        return null; // Not covered
+      }
+
+      // Return identifier for the covering element
+      return (
+        topElement.getAttribute('data-testid') ||
+        (topElement.id ? `#${topElement.id}` : null) ||
+        topElement.tagName.toLowerCase()
+      );
+    }, selector);
+  }
+
+  /**
    * Click element with human-like approach
    * Moves to element with Bezier curves, then clicks
+   * Includes covered element detection
    */
   async click(selector: string): Promise<void> {
+    // Wait for element to be attached to DOM
+    await this.page.waitForSelector(selector, { state: 'attached', timeout: 5000 });
+
+    // Check if covered by another element
+    const coveredBy = await this.checkIfCovered(selector);
+    if (coveredBy) {
+      throw new Error(
+        `Element "${selector}" is covered by "${coveredBy}". ` +
+          `Dismiss the covering element first.`
+      );
+    }
+
     await this.moveTo(selector);
     if (this.options.hesitation) {
       await this.randomDelay(20, 50);

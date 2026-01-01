@@ -56,11 +56,17 @@ export type CommandAction =
   | 'screenshot'
   | 'evaluate'
   | 'waitFor'
+  | 'waitForLoaded'
   | 'getUrl'
   | 'getTitle'
   | 'close'
   | 'setDialogAction'
-  | 'getLastDialog';
+  | 'getLastDialog'
+  | 'clearState'
+  | 'uploadFile'
+  | 'switchToFrame'
+  | 'switchToMain'
+  | 'getFrames';
 
 export interface Command {
   id: string;
@@ -73,6 +79,19 @@ export interface CommandResult {
   success: boolean;
   result?: unknown;
   error?: string;
+  /** Path to failure screenshot (only present on failed commands) */
+  screenshotPath?: string;
+}
+
+export interface RetryOptions {
+  /** Maximum number of attempts. Default: 3 */
+  maxAttempts?: number;
+  /** Initial delay between retries in ms. Default: 100 */
+  initialDelay?: number;
+  /** Maximum delay between retries in ms. Default: 2000 */
+  maxDelay?: number;
+  /** Backoff multiplier. Default: 2 */
+  backoffMultiplier?: number;
 }
 
 export interface Session {

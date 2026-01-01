@@ -3,9 +3,29 @@ import { readFile, writeFile, mkdir } from 'fs/promises';
 import { homedir } from 'os';
 import { dirname } from 'path';
 
+import type { Frame } from 'playwright';
+
 import { getBrowser } from './browser.js';
 import { createCursor } from './cursor.js';
-import type { SessionOptions, Command, CommandResult, Session } from './types.js';
+import { getElementErrorContext, formatElementError, isElementNotFoundError } from './errors.js';
+import { executeWithOptionalRetry } from './retry.js';
+import type { SessionOptions, Command, CommandResult, Session, RetryOptions } from './types.js';
+
+const FAILURE_SCREENSHOT_DIR = `${homedir()}/.puppet/failures`;
+
+// Default loading selectors to wait for
+const LOADING_SELECTORS = [
+  '[data-loading="true"]',
+  '[data-testid*="loading"]',
+  '[data-testid*="spinner"]',
+  '[data-testid*="skeleton"]',
+  '.loading',
+  '.spinner',
+  '.skeleton',
+  '.loading-indicator',
+  '.loading-overlay',
+  '[aria-busy="true"]',
+];
 
 const DEFAULT_COMMAND_FILE = `${homedir()}/.puppet/commands.json`;
 const DEFAULT_RESULT_FILE = `${homedir()}/.puppet/results.json`;
@@ -67,7 +87,7 @@ export async function startSession(options: SessionOptions = {}): Promise<Sessio
 
   // Launch browser
   log.info('Launching browser...');
-  let { browser, page } = await getBrowser({
+  let { browser, context, page } = await getBrowser({
     headless: options.headless ?? false,
     viewport: options.viewport,
   });
@@ -76,6 +96,9 @@ export async function startSession(options: SessionOptions = {}): Promise<Sessio
   let cursor = createCursor(page);
   let running = true;
   let browserConnected = true;
+
+  // Frame context for iframe support
+  let currentFrame: Frame | typeof page = page;
 
   // Dialog handling state
   let dialogAction: 'accept' | 'dismiss' = 'accept';
@@ -153,6 +176,7 @@ export async function startSession(options: SessionOptions = {}): Promise<Sessio
 
     try {
       let result: unknown = null;
+      const retryOpts = params.retry as number | RetryOptions | undefined;
 
       switch (action) {
         case 'init':
@@ -162,18 +186,32 @@ export async function startSession(options: SessionOptions = {}): Promise<Sessio
 
         case 'goto':
           await page.goto(params.url as string);
+          // Reset frame context on navigation
+          currentFrame = page;
           break;
 
         case 'click':
-          await cursor.click(params.selector as string);
+          await executeWithOptionalRetry(async () => {
+            if (currentFrame === page) {
+              await cursor.click(params.selector as string);
+            } else {
+              await currentFrame.click(params.selector as string);
+            }
+          }, retryOpts);
           break;
 
         case 'clear':
-          await page.locator(params.selector as string).clear();
+          await currentFrame.locator(params.selector as string).clear();
           break;
 
         case 'type':
-          await cursor.type(params.selector as string, params.text as string);
+          await executeWithOptionalRetry(async () => {
+            if (currentFrame === page) {
+              await cursor.type(params.selector as string, params.text as string);
+            } else {
+              await currentFrame.fill(params.selector as string, params.text as string);
+            }
+          }, retryOpts);
           break;
 
         case 'scroll':
@@ -192,14 +230,54 @@ export async function startSession(options: SessionOptions = {}): Promise<Sessio
         }
 
         case 'evaluate':
-          result = await page.evaluate(params.script as string);
+          result = await currentFrame.evaluate(params.script as string);
           break;
 
         case 'waitFor':
-          await page.waitForSelector(params.selector as string, {
-            timeout: (params.timeout as number) ?? 5000,
-          });
+          await executeWithOptionalRetry(async () => {
+            await currentFrame.waitForSelector(params.selector as string, {
+              timeout: (params.timeout as number) ?? 5000,
+            });
+          }, retryOpts);
           break;
+
+        case 'waitForLoaded': {
+          const customSelectors = params.selectors as string[] | undefined;
+          const selectorsToCheck = customSelectors ?? LOADING_SELECTORS;
+          const timeout = (params.timeout as number) ?? 10000;
+          const startTime = Date.now();
+
+          // Wait for each loading selector to disappear
+          for (const selector of selectorsToCheck) {
+            if (Date.now() - startTime > timeout) break;
+
+            try {
+              const exists = await page.$(selector);
+              if (exists) {
+                await page.waitForSelector(selector, {
+                  state: 'hidden',
+                  timeout: Math.max(1000, timeout - (Date.now() - startTime)),
+                });
+              }
+            } catch {
+              // Selector doesn't exist or already hidden, continue
+            }
+          }
+
+          // Also wait for network to be idle
+          if (params.waitForNetwork !== false) {
+            try {
+              await page.waitForLoadState('networkidle', {
+                timeout: Math.max(1000, timeout - (Date.now() - startTime)),
+              });
+            } catch {
+              log.debug('Network did not reach idle state');
+            }
+          }
+
+          result = { loaded: true };
+          break;
+        }
 
         case 'getUrl':
           result = page.url();
@@ -222,6 +300,93 @@ export async function startSession(options: SessionOptions = {}): Promise<Sessio
           result = lastDialogMessage;
           break;
 
+        case 'clearState': {
+          const cleared: string[] = ['cookies'];
+
+          // Clear cookies
+          await context.clearCookies();
+
+          // Clear storage (may fail on about:blank or file:// URLs)
+          try {
+            await page.evaluate(() => {
+              localStorage.clear();
+              sessionStorage.clear();
+            });
+            cleared.push('localStorage', 'sessionStorage');
+          } catch {
+            log.debug('Could not clear storage (may be on about:blank or restricted URL)');
+          }
+
+          // Optionally clear IndexedDB
+          if (params.includeIndexedDB) {
+            try {
+              await page.evaluate(async () => {
+                const databases = await indexedDB.databases();
+                for (const db of databases) {
+                  if (db.name) indexedDB.deleteDatabase(db.name);
+                }
+              });
+              cleared.push('indexedDB');
+            } catch {
+              log.debug('Could not clear IndexedDB');
+            }
+          }
+
+          result = { cleared };
+          break;
+        }
+
+        case 'uploadFile': {
+          const uploadSelector = params.selector as string;
+          const filePath = params.filePath as string | string[];
+
+          const fileInput = await page.$(uploadSelector);
+          if (!fileInput) {
+            throw new Error(`File input not found: ${uploadSelector}`);
+          }
+
+          const inputType = await fileInput.getAttribute('type');
+          if (inputType !== 'file') {
+            throw new Error(`Element is not a file input (type="${inputType}"): ${uploadSelector}`);
+          }
+
+          const files = Array.isArray(filePath) ? filePath : [filePath];
+          await fileInput.setInputFiles(files);
+          result = { uploaded: files };
+          break;
+        }
+
+        case 'switchToFrame': {
+          const frameSelector = params.selector as string;
+          const frameElement = await page.$(frameSelector);
+          if (!frameElement) {
+            throw new Error(`iframe not found: ${frameSelector}`);
+          }
+
+          const frame = await frameElement.contentFrame();
+          if (!frame) {
+            throw new Error(
+              `Could not access iframe content: ${frameSelector}. May be cross-origin restricted.`
+            );
+          }
+
+          currentFrame = frame;
+          result = { switched: true, url: frame.url() };
+          break;
+        }
+
+        case 'switchToMain':
+          currentFrame = page;
+          result = { switched: true };
+          break;
+
+        case 'getFrames':
+          result = page.frames().map(f => ({
+            name: f.name(),
+            url: f.url(),
+          }));
+          break;
+
         default:
           throw new Error(`Unknown action: ${action}`);
       }
@@ -229,8 +394,32 @@ export async function startSession(options: SessionOptions = {}): Promise<Sessio
       log.info(`Command ${action} completed successfully`);
       return { id, success: true, result };
     } catch (err) {
-      const errorMsg = err instanceof Error ? err.message : String(err);
+      let errorMsg = err instanceof Error ? err.message : String(err);
       log.error(`Command ${action} failed:`, errorMsg);
+
+      // Enhance error message for element-not-found errors
+      if (err instanceof Error && isElementNotFoundError(err) && params.selector) {
+        try {
+          const context = await getElementErrorContext(page, params.selector as string);
+          errorMsg = formatElementError(context);
+        } catch {
+          // Keep original error if context gathering fails
+        }
+      }
+
+      // Capture screenshot on failure
+      let screenshotPath: string | undefined;
+      if (browserConnected && action !== 'screenshot') {
+        try {
+          const timestamp = Date.now();
+          screenshotPath = `${FAILURE_SCREENSHOT_DIR}/error-${timestamp}.png`;
+          await mkdir(FAILURE_SCREENSHOT_DIR, { recursive: true });
+          await page.screenshot({ path: screenshotPath, fullPage: true });
+          log.info(`Failure screenshot saved: ${screenshotPath}`);
+        } catch (screenshotErr) {
+          log.debug('Failed to capture failure screenshot:', screenshotErr);
+        }
+      }
 
       // Detect if browser died during command execution
       if (isBrowserDeadError(err)) {
@@ -243,6 +432,7 @@ export async function startSession(options: SessionOptions = {}): Promise<Sessio
         id,
         success: false,
         error: browserConnected ? errorMsg : `${errorMsg} (browser disconnected)`,
+        screenshotPath,
       };
     }
   }
@@ -358,6 +548,7 @@ export async function startSession(options: SessionOptions = {}): Promise<Sessio
         viewport: options.viewport,
       });
       browser = newInstance.browser;
+      context = newInstance.context;
       page = newInstance.page;
       cursor = createCursor(page);
 
@@ -367,6 +558,7 @@ export async function startSession(options: SessionOptions = {}): Promise<Sessio
       lastCommandId = '';
       dialogAction = 'accept';
       lastDialogMessage = '';
+      currentFrame = page;
 
       // Reattach event listeners
       attachEventListeners();
