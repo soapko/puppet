@@ -34,6 +34,8 @@ export interface SessionOptions {
   commandFile?: string;
   /** Path to result file. Default: ~/.puppet/results.json */
   resultFile?: string;
+  /** Path to status file. Default: ~/.puppet/status.json */
+  statusFile?: string;
   /** Run browser in headless mode. Default: false */
   headless?: boolean;
   /** Browser viewport size */

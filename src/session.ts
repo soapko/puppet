@@ -9,6 +9,13 @@ import type { SessionOptions, Command, CommandResult, Session } from './types.js
 
 const DEFAULT_COMMAND_FILE = `${homedir()}/.puppet/commands.json`;
 const DEFAULT_RESULT_FILE = `${homedir()}/.puppet/results.json`;
+const DEFAULT_STATUS_FILE = `${homedir()}/.puppet/status.json`;
+
+export interface SessionStatus {
+  running: boolean;
+  browserConnected: boolean;
+  lastUpdated: number;
+}
 
 /**
  * Check if an error indicates the browser/page is dead
@@ -41,11 +48,13 @@ const log = {
 export async function startSession(options: SessionOptions = {}): Promise<Session> {
   const commandFile = options.commandFile ?? DEFAULT_COMMAND_FILE;
   const resultFile = options.resultFile ?? DEFAULT_RESULT_FILE;
+  const statusFile = options.statusFile ?? DEFAULT_STATUS_FILE;
 
   // Ensure directories exist
-  log.debug('Creating directories for command/result files');
+  log.debug('Creating directories for command/result/status files');
   await mkdir(dirname(commandFile), { recursive: true });
   await mkdir(dirname(resultFile), { recursive: true });
+  await mkdir(dirname(statusFile), { recursive: true });
 
   // Initialize command file if it doesn't exist
   try {
@@ -73,6 +82,25 @@ export async function startSession(options: SessionOptions = {}): Promise<Sessio
   let lastDialogMessage = '';
 
   /**
+   * Write current session status to file for external processes to check
+   */
+  async function writeStatus() {
+    const status: SessionStatus = {
+      running: running && browserConnected,
+      browserConnected,
+      lastUpdated: Date.now(),
+    };
+    try {
+      await writeFile(statusFile, JSON.stringify(status, null, 2));
+    } catch (err) {
+      log.debug('Failed to write status file:', err);
+    }
+  }
+
+  // Write initial status
+  await writeStatus();
+
+  /**
    * Attach event listeners to browser and page
    */
   function attachEventListeners() {
@@ -81,12 +109,14 @@ export async function startSession(options: SessionOptions = {}): Promise<Sessio
       log.error('Browser disconnected unexpectedly');
       browserConnected = false;
       running = false;
+      writeStatus(); // Update status file for external processes
     });
 
     // Handle page close
     page.on('close', () => {
       log.error('Page closed unexpectedly');
       running = false;
+      writeStatus(); // Update status file for external processes
     });
 
     // Auto-accept dialogs (confirm, alert, prompt) for testing
@@ -271,6 +301,7 @@ export async function startSession(options: SessionOptions = {}): Promise<Sessio
       }
     }
     browserConnected = false;
+    await writeStatus(); // Update status file
   }
 
   // Start watching for commands
@@ -349,9 +380,36 @@ export async function startSession(options: SessionOptions = {}): Promise<Sessio
         log.error('File watcher error:', err);
       });
 
+      // Update status file
+      await writeStatus();
+
       log.info('Session restarted and ready');
     },
   };
+}
+
+/**
+ * Check if session is running by reading the status file
+ */
+async function checkSessionStatus(
+  statusFile: string
+): Promise<{ running: boolean; error?: string }> {
+  try {
+    const content = await readFile(statusFile, 'utf-8');
+    const status = JSON.parse(content) as SessionStatus;
+    if (!status.running) {
+      return {
+        running: false,
+        error: status.browserConnected
+          ? 'Session is not running'
+          : 'Browser disconnected. Call restart() to recover.',
+      };
+    }
+    return { running: true };
+  } catch {
+    // Status file doesn't exist or is unreadable - session might not be started
+    return { running: false, error: 'Session status unavailable. Is a session running?' };
+  }
 }
 
 /**
@@ -359,11 +417,22 @@ export async function startSession(options: SessionOptions = {}): Promise<Sessio
  */
 export async function sendCommand(
   command: Omit<Command, 'id'>,
-  options: { commandFile?: string; resultFile?: string; timeout?: number } = {}
+  options: { commandFile?: string; resultFile?: string; statusFile?: string; timeout?: number } = {}
 ): Promise<CommandResult> {
   const commandFile = options.commandFile ?? DEFAULT_COMMAND_FILE;
   const resultFile = options.resultFile ?? DEFAULT_RESULT_FILE;
+  const statusFile = options.statusFile ?? DEFAULT_STATUS_FILE;
   const timeout = options.timeout ?? 10000;
+
+  // Check session status before sending command
+  const status = await checkSessionStatus(statusFile);
+  if (!status.running) {
+    return {
+      id: 'pre-check',
+      success: false,
+      error: status.error ?? 'Session is not running',
+    };
+  }
 
   const id = `cmd-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
   const cmd: Command = { id, ...command };
@@ -371,9 +440,12 @@ export async function sendCommand(
   // Write command
   await writeFile(commandFile, JSON.stringify(cmd, null, 2));
 
-  // Wait for result
+  // Wait for result, periodically checking session status
   const startTime = Date.now();
+  let lastStatusCheck = startTime;
+
   while (Date.now() - startTime < timeout) {
+    // Check for result
     try {
       const content = await readFile(resultFile, 'utf-8');
       const result = JSON.parse(content) as CommandResult;
@@ -381,8 +453,22 @@ export async function sendCommand(
         return result;
       }
     } catch {
-      // Ignore errors
+      // Ignore read errors
     }
+
+    // Periodically check if session is still alive (every 500ms)
+    if (Date.now() - lastStatusCheck > 500) {
+      const currentStatus = await checkSessionStatus(statusFile);
+      if (!currentStatus.running) {
+        return {
+          id,
+          success: false,
+          error: currentStatus.error ?? 'Session died while waiting for result',
+        };
+      }
+      lastStatusCheck = Date.now();
+    }
+
     await new Promise(r => setTimeout(r, 50));
   }
 
