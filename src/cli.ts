@@ -14,6 +14,7 @@
  *   --no-headless      Run browser with visible window (default)
  */
 
+import { startRepl } from './repl.js';
 import { serve } from './server.js';
 import { runStdio } from './stdio.js';
 
@@ -24,6 +25,7 @@ Puppet CLI - Browser automation with human-like cursor movements
 Usage:
   puppet serve [options]    Start HTTP server mode
   puppet stdio [options]    Start stdio JSON protocol mode
+  puppet repl               Start interactive REPL mode
 
 Options:
   --port=PORT        HTTP server port (default: 3000)
@@ -37,6 +39,7 @@ Examples:
   puppet serve --port=8080        Start server on port 8080
   puppet serve --headless         Start with headless browser
   puppet stdio --headless         Start stdio mode headless
+  puppet repl                     Start interactive REPL
 
 Stdio Mode:
   Reads JSON commands from stdin, writes JSON results to stdout.
@@ -91,6 +94,11 @@ async function main() {
       const headless = hasFlag('--headless') && !hasFlag('--no-headless');
 
       await runStdio({ headless });
+      break;
+    }
+
+    case 'repl': {
+      await startRepl();
       break;
     }
 

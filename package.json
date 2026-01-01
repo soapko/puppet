@@ -12,6 +12,10 @@
     ".": {
       "import": "./dist/index.js",
       "types": "./dist/index.d.ts"
+    },
+    "./test": {
+      "import": "./dist/test/index.js",
+      "types": "./dist/test/index.d.ts"
     }
   },
   "scripts": {
@@ -38,8 +42,17 @@
     "ghost-cursor-playwright": "^2.1.0",
     "playwright": "^1.52.0"
   },
+  "peerDependencies": {
+    "vitest": ">=1.0.0"
+  },
+  "peerDependenciesMeta": {
+    "vitest": {
+      "optional": true
+    }
+  },
   "devDependencies": {
     "@eslint/js": "^9.39.2",
+    "vitest": "^3.0.0",
     "@types/node": "^22.10.2",
     "eslint": "^9.39.2",
     "eslint-import-resolver-typescript": "^4.4.4",

@@ -273,3 +273,100 @@ interface Session {
 ```
 
 This bypasses file-based IPC and enables stdio mode to process commands directly.
+
+---
+
+## REPL Mode
+
+**Implemented:** 2026-01-01
+
+Interactive command-line for exploring and debugging browser automation.
+
+### Files
+
+- `src/repl.ts` - REPL implementation with readline
+- `src/cli.ts` - CLI entry point (`puppet repl`)
+
+### Starting REPL
+
+```bash
+npx puppet repl
+```
+
+### Features
+
+- Interactive readline-based prompt with command history
+- Smart selector resolution (bare strings → testid)
+- All common browser commands: goto, click, type, text, screenshot, etc.
+- Command aliases for quick access (c = click, t = type, ss = screenshot)
+- Clean exit on Ctrl+C or `exit` command
+
+---
+
+## Test Runner Integration
+
+**Implemented:** 2026-01-01
+
+First-class Vitest integration for browser testing with custom matchers.
+
+### Files
+
+- `src/test/index.ts` - Package entry point
+- `src/test/runner.ts` - Vitest test wrapper with `page` fixture
+- `src/test/matchers.ts` - Custom expect matchers
+- `src/test/config.ts` - Configuration utilities
+
+### Package Export
+
+```json
+{
+  "exports": {
+    "./test": {
+      "import": "./dist/test/index.js",
+      "types": "./dist/test/index.d.ts"
+    }
+  }
+}
+```
+
+### Usage
+
+```typescript
+import { test, expect, setupPuppet } from 'puppet/test';
+
+setupPuppet();
+
+test('user can login', async ({ page }) => {
+  await page.goto('/login');
+  await page.type('email', 'user@example.com');
+  await page.click('submit');
+
+  await expect(page).toHaveURL('/dashboard');
+  await expect(page).toHaveText('welcome', 'Hello');
+});
+```
+
+### Custom Matchers
+
+- `toHaveURL(expected)` - Assert URL matches
+- `toHaveTitle(expected)` - Assert title matches
+- `toHaveText(selector, expected)` - Assert element text
+- `toBeVisible(selector)` - Assert element visible
+- `toBeHidden(selector)` - Assert element hidden
+- `toHaveValue(selector, expected)` - Assert input value
+- `toBeChecked(selector)` - Assert checkbox checked
+- `toBeEnabled(selector)` - Assert element enabled
+- `toBeDisabled(selector)` - Assert element disabled
+- `toHaveCount(selector, count)` - Assert element count
+
+### Configuration
+
+```typescript
+import { defineConfig } from 'puppet/test';
+
+export default defineConfig({
+  baseURL: 'http://localhost:3000',
+  headless: true,
+  screenshotOnFailure: true,
+});
+```

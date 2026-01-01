@@ -708,6 +708,18 @@ export async function startSession(options: SessionOptions = {}): Promise<Sessio
     await writeStatus(); // Update status file
   }
 
+  // Initialize lastCommandId from existing file to avoid processing stale commands
+  try {
+    const existingContent = await readFile(commandFile, 'utf-8');
+    const existingCmd = JSON.parse(existingContent) as Command;
+    if (existingCmd.id) {
+      lastCommandId = existingCmd.id;
+      log.debug('Initialized lastCommandId from existing file:', lastCommandId);
+    }
+  } catch {
+    // Ignore - file may not exist or be empty
+  }
+
   // Start watching for commands
   log.info('Starting file watcher on:', commandFile);
   watcher = watch(commandFile, { persistent: true }, () => {

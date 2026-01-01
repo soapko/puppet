@@ -36,8 +36,8 @@
 
 #### Low Priority (Future)
 
-- [ ] REPL mode -> [002.feature.17-repl-mode.md](docs/tasks/002.feature.17-repl-mode.md)
-- [ ] Test runner integration (Jest/Vitest) -> [002.feature.18-test-runner-integration.md](docs/tasks/002.feature.18-test-runner-integration.md)
+- [✅] REPL mode -> [002.feature.17-repl-mode.md](docs/tasks/002.feature.17-repl-mode.md)
+- [✅] Test runner integration (Jest/Vitest) -> [002.feature.18-test-runner-integration.md](docs/tasks/002.feature.18-test-runner-integration.md)
 - [ ] WebSocket mode -> [002.feature.19-websocket-mode.md](docs/tasks/002.feature.19-websocket-mode.md)
 - [ ] Recording mode -> [002.feature.20-recording-mode.md](docs/tasks/002.feature.20-recording-mode.md)
 

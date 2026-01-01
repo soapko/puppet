@@ -43,13 +43,15 @@ await browser.close();
 
 ## Usage Modes
 
-Puppet supports five usage modes:
+Puppet supports seven usage modes:
 
 1. **Fluent API** (Recommended) - Clean, method-based interface with smart selectors
-2. **HTTP Server Mode** - REST API for language-agnostic browser automation
-3. **Stdio Mode** - JSON protocol over stdin/stdout for subprocess integration
-4. **Script Mode** - Full programmatic control with Playwright page access
-5. **Interactive Mode** - Persistent browser session controlled via file-based commands
+2. **Test Runner Integration** - First-class Vitest integration with custom matchers
+3. **HTTP Server Mode** - REST API for language-agnostic browser automation
+4. **Stdio Mode** - JSON protocol over stdin/stdout for subprocess integration
+5. **REPL Mode** - Interactive command-line for exploration and debugging
+6. **Script Mode** - Full programmatic control with Playwright page access
+7. **Interactive Mode** - Persistent browser session controlled via file-based commands
 
 ---
 
@@ -234,6 +236,126 @@ Assertion failed: Text mismatch
   Expected: "Hello, User"
   Actual: "Welcome, Guest"
   Mode: exact
+```
+
+---
+
+## Test Runner Integration
+
+First-class integration with Vitest for browser testing. Provides a `page` fixture and custom matchers for clean, expressive tests.
+
+### Setup
+
+Install Vitest as a dev dependency:
+
+```bash
+npm install -D vitest
+```
+
+### Writing Tests
+
+```typescript
+import { test, expect, setupPuppet, describe } from 'puppet/test';
+
+// Setup cleanup on test completion
+setupPuppet();
+
+describe('Login Flow', () => {
+  test('user can login', async ({ page }) => {
+    await page.goto('https://example.com/login');
+    await page.type('email', 'user@example.com');
+    await page.type('password', 'secret123');
+    await page.click('submit');
+
+    // Custom matchers
+    await expect(page).toHaveURL('/dashboard');
+    await expect(page).toHaveTitle('Dashboard');
+    await expect(page).toHaveText('welcome', 'Hello, User');
+  });
+
+  test('shows error on invalid credentials', async ({ page }) => {
+    await page.goto('https://example.com/login');
+    await page.type('email', 'wrong@example.com');
+    await page.type('password', 'wrong');
+    await page.click('submit');
+
+    await expect(page).toBeVisible('error-message');
+    await expect(page).toHaveText('error-message', 'Invalid credentials');
+  });
+});
+```
+
+### Custom Matchers
+
+| Matcher                           | Description                        |
+| --------------------------------- | ---------------------------------- |
+| `toHaveURL(expected)`             | Assert URL matches (partial)       |
+| `toHaveTitle(expected)`           | Assert title matches (partial)     |
+| `toHaveText(selector, expected)`  | Assert element contains text       |
+| `toBeVisible(selector)`           | Assert element is visible          |
+| `toBeHidden(selector)`            | Assert element is hidden           |
+| `toHaveValue(selector, expected)` | Assert input value matches         |
+| `toBeChecked(selector)`           | Assert checkbox is checked         |
+| `toBeEnabled(selector)`           | Assert element is enabled          |
+| `toBeDisabled(selector)`          | Assert element is disabled         |
+| `toHaveCount(selector, count)`    | Assert number of matching elements |
+
+### Configuration
+
+Create a `puppet.config.ts` file for project-wide settings:
+
+```typescript
+import { defineConfig } from 'puppet/test';
+
+export default defineConfig({
+  baseURL: 'http://localhost:3000',
+  headless: true,
+  timeout: 30000,
+  screenshotOnFailure: true,
+  screenshotDir: './test-results',
+});
+```
+
+### Configuration Options
+
+| Option                | Default            | Description                       |
+| --------------------- | ------------------ | --------------------------------- |
+| `baseURL`             | `''`               | Base URL for relative navigation  |
+| `headless`            | `true`             | Run browser in headless mode      |
+| `slowMo`              | `0`                | Slow down actions (ms)            |
+| `timeout`             | `30000`            | Default action timeout (ms)       |
+| `screenshotOnFailure` | `true`             | Take screenshot on test failure   |
+| `screenshotDir`       | `'./test-results'` | Directory for failure screenshots |
+
+### Running Tests
+
+```bash
+# Run all tests
+npx vitest run
+
+# Run specific test file
+npx vitest run tests/login.test.ts
+
+# Watch mode
+npx vitest
+
+# With coverage
+npx vitest run --coverage
+```
+
+### Vitest Configuration
+
+Add to your `vitest.config.ts`:
+
+```typescript
+import { defineConfig } from 'vitest/config';
+
+export default defineConfig({
+  test: {
+    testTimeout: 60000, // Browser tests need more time
+    hookTimeout: 30000,
+  },
+});
 ```
 
 ---
@@ -451,6 +573,138 @@ send({'action': 'close'})
 ### Available Commands
 
 All commands from Interactive Mode work in Stdio Mode. See the [Available Commands](#available-commands) section for the full list.
+
+---
+
+## REPL Mode
+
+Interactive command-line interface for exploring and debugging browser automation. Great for testing selectors, learning the API, and quick debugging.
+
+### Starting REPL
+
+```bash
+npx puppet repl
+```
+
+This launches a visible browser and presents an interactive prompt:
+
+```
+Starting Puppet REPL...
+Browser ready. Type "help" for commands.
+
+puppet>
+```
+
+### Commands
+
+**Navigation:**
+| Command | Description |
+| ------- | ----------- |
+| `goto <url>` | Navigate to URL |
+| `back` | Go back in history |
+| `forward` | Go forward |
+| `reload` | Reload page |
+
+**Interaction:**
+| Command | Description |
+| ------- | ----------- |
+| `click <selector>` | Click element |
+| `type <selector> <text>` | Type text into element |
+| `clear [selector]` | Clear input, or cookies/storage if no selector |
+| `hover <selector>` | Hover over element |
+| `scroll [up\|down] [px]` | Scroll page (default: down 300px) |
+| `check <selector>` | Check checkbox |
+| `uncheck <selector>` | Uncheck checkbox |
+| `select <selector> <value>` | Select dropdown option |
+
+**Inspection:**
+| Command | Description |
+| ------- | ----------- |
+| `text <selector>` | Get element text content |
+| `value <selector>` | Get input value |
+| `html [selector]` | Get HTML (element or full page) |
+| `url` | Get current URL |
+| `title` | Get page title |
+| `screenshot [path]` | Take screenshot |
+
+**Waiting:**
+| Command | Description |
+| ------- | ----------- |
+| `wait [ms]` | Wait milliseconds (default: 1000) |
+| `waitfor <selector> [ms]` | Wait for element |
+| `waitloaded [ms]` | Wait for page load |
+
+**JavaScript:**
+| Command | Description |
+| ------- | ----------- |
+| `eval <code>` | Execute JavaScript |
+
+**Frames:**
+| Command | Description |
+| ------- | ----------- |
+| `frame <selector>` | Switch to iframe |
+| `mainframe` | Switch to main frame |
+
+**Other:**
+| Command | Description |
+| ------- | ----------- |
+| `help` | Show all commands |
+| `exit` | Close browser and exit |
+
+### Smart Selectors
+
+REPL uses smart selector resolution - bare strings become testids:
+
+```
+puppet> click submit-btn
+Clicked submit-btn  → clicks [data-testid="submit-btn"]
+
+puppet> click #login
+Clicked #login      → clicks CSS ID #login
+
+puppet> click .btn
+Clicked .btn        → clicks CSS class .btn
+```
+
+### Example Session
+
+```
+puppet> goto https://example.com
+Navigated to https://example.com
+
+puppet> title
+Example Domain
+
+puppet> text h1
+Example Domain
+
+puppet> screenshot ./debug.png
+Screenshot saved: ./debug.png
+
+puppet> eval document.querySelectorAll('a').length
+1
+
+puppet> exit
+Closing browser...
+```
+
+### Command Aliases
+
+| Full Command | Aliases     |
+| ------------ | ----------- |
+| `goto`       | `go`, `nav` |
+| `click`      | `c`         |
+| `type`       | `t`         |
+| `value`      | `val`       |
+| `screenshot` | `ss`        |
+| `waitfor`    | `wf`        |
+| `waitloaded` | `wl`        |
+| `mainframe`  | `main`      |
+| `reload`     | `refresh`   |
+| `wait`       | `sleep`     |
+| `eval`       | `js`        |
+| `help`       | `h`, `?`    |
+| `exit`       | `quit`, `q` |
 
 ---
 
