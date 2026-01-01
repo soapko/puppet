@@ -598,8 +598,9 @@ If you get "Element not found" errors:
    ```
 
 3. **Check if element is in an iframe:**
-   - The session operates on the main frame only
-   - Use `evaluate` to access iframe content if needed
+   - Use `switchToFrame` to switch context into the iframe
+   - Use `switchToMain` to return to the main page
+   - See "Working with iframes" section above
 
 ### Debug Mode
 
