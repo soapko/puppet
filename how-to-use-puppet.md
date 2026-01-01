@@ -43,15 +43,16 @@ await browser.close();
 
 ## Usage Modes
 
-Puppet supports seven usage modes:
+Puppet supports eight usage modes:
 
 1. **Fluent API** (Recommended) - Clean, method-based interface with smart selectors
 2. **Test Runner Integration** - First-class Vitest integration with custom matchers
 3. **HTTP Server Mode** - REST API for language-agnostic browser automation
 4. **Stdio Mode** - JSON protocol over stdin/stdout for subprocess integration
-5. **REPL Mode** - Interactive command-line for exploration and debugging
-6. **Script Mode** - Full programmatic control with Playwright page access
-7. **Interactive Mode** - Persistent browser session controlled via file-based commands
+5. **WebSocket Mode** - Real-time bidirectional browser control
+6. **REPL Mode** - Interactive command-line for exploration and debugging
+7. **Script Mode** - Full programmatic control with Playwright page access
+8. **Interactive Mode** - Persistent browser session controlled via file-based commands
 
 ---
 
@@ -573,6 +574,163 @@ send({'action': 'close'})
 ### Available Commands
 
 All commands from Interactive Mode work in Stdio Mode. See the [Available Commands](#available-commands) section for the full list.
+
+---
+
+## WebSocket Mode
+
+WebSocket mode provides real-time, bidirectional browser control. Unlike HTTP mode (request/response), WebSocket maintains a persistent connection for lower latency and enables server-pushed events.
+
+### Starting the Server
+
+```bash
+# Start with defaults (port 3001, visible browser)
+npx puppet ws
+
+# Custom port, headless browser
+npx puppet ws --port=8080 --headless
+```
+
+Or programmatically:
+
+```javascript
+import { serveWebSocket } from 'puppet';
+
+const wss = await serveWebSocket({
+  port: 3001,
+  host: 'localhost',
+  headless: true,
+});
+```
+
+### Protocol
+
+**Server → Client (on connect):**
+
+```json
+{ "type": "ready" }
+```
+
+**Client → Server (commands):**
+
+```json
+{
+  "type": "command",
+  "id": "unique-id",
+  "command": {
+    "action": "goto",
+    "params": { "url": "https://example.com" }
+  }
+}
+```
+
+**Server → Client (results):**
+
+```json
+{
+  "type": "result",
+  "id": "unique-id",
+  "success": true,
+  "result": null
+}
+```
+
+**Server → Client (errors):**
+
+```json
+{
+  "type": "error",
+  "id": "unique-id",
+  "error": "Element not found"
+}
+```
+
+### From Node.js
+
+```javascript
+import WebSocket from 'ws';
+
+const ws = new WebSocket('ws://localhost:3001');
+
+ws.on('open', () => {
+  console.log('Connected');
+});
+
+ws.on('message', data => {
+  const msg = JSON.parse(data.toString());
+  console.log('Received:', msg);
+
+  if (msg.type === 'ready') {
+    // Send first command
+    ws.send(
+      JSON.stringify({
+        type: 'command',
+        id: '1',
+        command: { action: 'goto', params: { url: 'https://example.com' } },
+      })
+    );
+  }
+});
+```
+
+### From Browser
+
+```javascript
+const ws = new WebSocket('ws://localhost:3001');
+
+ws.onopen = () => {
+  console.log('Connected');
+};
+
+ws.onmessage = event => {
+  const msg = JSON.parse(event.data);
+
+  if (msg.type === 'ready') {
+    ws.send(
+      JSON.stringify({
+        type: 'command',
+        id: '1',
+        command: { action: 'goto', params: { url: 'https://example.com' } },
+      })
+    );
+  }
+
+  if (msg.type === 'result') {
+    console.log('Command result:', msg);
+  }
+};
+```
+
+### From Python
+
+```python
+import asyncio
+import websockets
+import json
+
+async def main():
+    async with websockets.connect('ws://localhost:3001') as ws:
+        # Wait for ready
+        msg = json.loads(await ws.recv())
+        print('Ready:', msg)
+
+        # Send command
+        await ws.send(json.dumps({
+            'type': 'command',
+            'id': '1',
+            'command': {'action': 'goto', 'params': {'url': 'https://example.com'}}
+        }))
+
+        # Get result
+        result = json.loads(await ws.recv())
+        print('Result:', result)
+
+asyncio.run(main())
+```
+
+### Available Commands
+
+All commands from Interactive Mode work in WebSocket Mode. See the [Available Commands](#available-commands) section for the full list.
 
 ---
 

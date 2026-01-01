@@ -15,6 +15,10 @@ export type { ServerOptions } from './server.js';
 export { runStdio } from './stdio.js';
 export type { StdioOptions } from './stdio.js';
 
+// WebSocket mode
+export { serveWebSocket, stopWebSocketServer } from './websocket.js';
+export type { WebSocketServerOptions } from './websocket.js';
+
 // REPL mode
 export { startRepl } from './repl.js';
 export type { ReplOptions } from './repl.js';

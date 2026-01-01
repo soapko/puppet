@@ -17,6 +17,7 @@
 import { startRepl } from './repl.js';
 import { serve } from './server.js';
 import { runStdio } from './stdio.js';
+import { serveWebSocket } from './websocket.js';
 
 function printHelp() {
   console.log(`
@@ -25,19 +26,22 @@ Puppet CLI - Browser automation with human-like cursor movements
 Usage:
   puppet serve [options]    Start HTTP server mode
   puppet stdio [options]    Start stdio JSON protocol mode
+  puppet ws [options]       Start WebSocket server mode
   puppet repl               Start interactive REPL mode
 
 Options:
-  --port=PORT        HTTP server port (default: 3000)
-  --host=HOST        HTTP server host (default: localhost)
+  --port=PORT        Server port (default: 3000 for HTTP, 3001 for WS)
+  --host=HOST        Server host (default: localhost)
   --headless         Run browser in headless mode
   --no-headless      Run browser with visible window (default)
   --help, -h         Show this help message
 
 Examples:
-  puppet serve                    Start server on port 3000
-  puppet serve --port=8080        Start server on port 8080
+  puppet serve                    Start HTTP server on port 3000
+  puppet serve --port=8080        Start HTTP server on port 8080
   puppet serve --headless         Start with headless browser
+  puppet ws                       Start WebSocket server on port 3001
+  puppet ws --port=8080           Start WebSocket server on port 8080
   puppet stdio --headless         Start stdio mode headless
   puppet repl                     Start interactive REPL
 
@@ -99,6 +103,15 @@ async function main() {
 
     case 'repl': {
       await startRepl();
+      break;
+    }
+
+    case 'ws': {
+      const port = parseInt(getArg('--port=') || '3001', 10);
+      const host = getArg('--host=') || 'localhost';
+      const headless = hasFlag('--headless') && !hasFlag('--no-headless');
+
+      await serveWebSocket({ port, host, headless });
       break;
     }
 

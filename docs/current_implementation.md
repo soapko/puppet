@@ -4,6 +4,45 @@ Overview of implemented features and important implementation details.
 
 ---
 
+## WebSocket Mode
+
+**Implemented:** 2026-01-01
+
+Real-time, bidirectional browser control via WebSocket.
+
+### Files
+
+- `src/websocket.ts` - WebSocket server implementation
+- `src/cli.ts` - CLI entry point (`puppet ws`)
+
+### Starting the Server
+
+```bash
+npx puppet ws --port=3001 --headless
+```
+
+### Protocol
+
+| Direction       | Message Type | Description                            |
+| --------------- | ------------ | -------------------------------------- |
+| Server → Client | `ready`      | Sent on connection                     |
+| Client → Server | `command`    | Command with `id` and `command` object |
+| Server → Client | `result`     | Result with matching `id`              |
+| Server → Client | `error`      | Error with optional `id`               |
+
+### Programmatic Usage
+
+```typescript
+import { serveWebSocket, stopWebSocketServer } from 'puppet';
+
+const wss = await serveWebSocket({ port: 3001, headless: true });
+
+// Later...
+await stopWebSocketServer(wss);
+```
+
+---
+
 ## Fluent API & Ease of Use
 
 **Implemented:** 2026-01-01
