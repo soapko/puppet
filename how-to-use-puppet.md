@@ -43,7 +43,7 @@ await browser.close();
 
 ## Usage Modes
 
-Puppet supports eight usage modes:
+Puppet supports nine usage modes:
 
 1. **Fluent API** (Recommended) - Clean, method-based interface with smart selectors
 2. **Test Runner Integration** - First-class Vitest integration with custom matchers
@@ -51,8 +51,9 @@ Puppet supports eight usage modes:
 4. **Stdio Mode** - JSON protocol over stdin/stdout for subprocess integration
 5. **WebSocket Mode** - Real-time bidirectional browser control
 6. **REPL Mode** - Interactive command-line for exploration and debugging
-7. **Script Mode** - Full programmatic control with Playwright page access
-8. **Interactive Mode** - Persistent browser session controlled via file-based commands
+7. **Recording Mode** - Capture user interactions and generate test scripts
+8. **Script Mode** - Full programmatic control with Playwright page access
+9. **Interactive Mode** - Persistent browser session controlled via file-based commands
 
 ---
 
@@ -863,6 +864,153 @@ Closing browser...
 | `eval`       | `js`        |
 | `help`       | `h`, `?`    |
 | `exit`       | `quit`, `q` |
+
+---
+
+## Recording Mode
+
+Record user interactions in the browser and automatically generate test scripts. Great for quickly creating test scaffolds without writing code manually.
+
+### Starting the Recorder
+
+```bash
+# Basic recording - opens browser, you interact, it generates code
+npx puppet record
+
+# Start at a specific URL
+npx puppet record --url=https://example.com
+
+# Save generated test to a file
+npx puppet record --url=https://example.com --output=tests/login.test.ts
+
+# Generate Playwright format instead of puppet format
+npx puppet record --url=https://example.com --format=playwright
+```
+
+### How It Works
+
+1. Launches a visible browser with an injected recorder script
+2. Captures your interactions: clicks, typing, select changes, checkboxes
+3. Prioritizes `data-testid` selectors for stability
+4. Debounces rapid typing into single commands
+5. On Ctrl+C or browser close, generates and displays test code
+6. Optionally saves to specified output file
+
+### Example Session
+
+```
+$ npx puppet record --url=https://example.com --output=tests/example.test.ts
+
+Starting recorder...
+Navigating to https://example.com...
+
+Recording... Perform actions in the browser.
+Press Ctrl+C or close the browser when done.
+
+Recorded: click on login-btn
+Recorded: type on email-input
+Recorded: type on password-input
+Recorded: click on submit-btn
+
+^C
+Stopping recorder...
+
+--- Generated Test ---
+
+import { test } from 'puppet/test';
+
+test('recorded test', async ({ page }) => {
+  await page.goto('https://example.com');
+  await page.click('login-btn');
+  await page.type('email-input', 'user@test.com');
+  await page.type('password-input', 'secret123');
+  await page.click('submit-btn');
+});
+
+Saved to tests/example.test.ts
+```
+
+### Selector Priority
+
+The recorder generates selectors in this priority order:
+
+1. `data-testid` attribute (most stable)
+2. `id` attribute (if not dynamically generated)
+3. `name` attribute (for form elements)
+4. Unique class combination
+5. CSS path (fallback)
+
+### CLI Options
+
+| Option          | Description                                       |
+| --------------- | ------------------------------------------------- |
+| `--url=URL`     | Starting URL to navigate to                       |
+| `--output=FILE` | Save generated test to file                       |
+| `--format=FMT`  | Output format: `puppet` (default) or `playwright` |
+
+### Programmatic Usage
+
+```javascript
+import { startRecording, generateTestCode } from 'puppet';
+
+// Record interactively and get generated code
+const code = await startRecording({
+  url: 'https://example.com',
+  output: 'tests/recorded.test.ts',
+  format: 'puppet',
+  testName: 'user login flow',
+});
+
+// Or generate code from events manually
+import { generateTestCode } from 'puppet';
+
+const events = [
+  { type: 'goto', selector: '', value: 'https://example.com', timestamp: Date.now() },
+  { type: 'click', selector: '[data-testid="login-btn"]', timestamp: Date.now() },
+  {
+    type: 'type',
+    selector: '[data-testid="email"]',
+    value: 'user@test.com',
+    timestamp: Date.now(),
+  },
+];
+
+const testCode = generateTestCode(events, { format: 'puppet' });
+console.log(testCode);
+```
+
+### Output Formats
+
+**Puppet format (default):**
+
+```typescript
+import { test } from 'puppet/test';
+
+test('recorded test', async ({ page }) => {
+  await page.goto('https://example.com');
+  await page.click('submit-btn');
+  await page.type('email', 'user@test.com');
+});
+```
+
+**Playwright format:**
+
+```typescript
+import { test, expect } from '@playwright/test';
+
+test('recorded test', async ({ page }) => {
+  await page.goto('https://example.com');
+  await page.click('[data-testid="submit-btn"]');
+  await page.fill('[data-testid="email"]', 'user@test.com');
+});
+```
+
+### Tips
+
+- **Use data-testid attributes** in your app for the most stable selectors
+- **Edit generated tests** to add assertions and clean up unnecessary actions
+- **Record small flows** and combine them rather than recording entire long sessions
+- **Close the browser** or press Ctrl+C when done to generate the code
 
 ---
 
