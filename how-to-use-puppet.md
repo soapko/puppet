@@ -181,40 +181,9 @@ console.log(testid('submit')); // '[data-testid="submit"]'
 
 ### Assertions
 
-Built-in assertions verify page state and throw clear errors on failure:
+Built-in assertions verify page state and throw descriptive errors on failure:
 
-```javascript
-import { withBrowser } from 'puppet';
-
-await withBrowser(async browser => {
-  await browser.goto('https://example.com');
-
-  // Element visibility
-  await browser.assertVisible('login-form');
-  await browser.assertHidden('loading-spinner');
-
-  // Text content
-  await browser.assertText('welcome', 'Hello, User'); // exact match
-  await browser.assertText('welcome', 'Hello', false); // contains
-
-  // Form state
-  await browser.assertValue('email-input', 'test@example.com');
-  await browser.assertChecked('remember-me');
-  await browser.assertUnchecked('newsletter-opt-in');
-  await browser.assertEnabled('submit-btn');
-  await browser.assertDisabled('locked-field');
-
-  // Page state
-  await browser.assertUrl('/dashboard', false); // contains
-  await browser.assertUrl('https://example.com/dashboard'); // exact
-  await browser.assertTitle('Dashboard');
-
-  // Count elements
-  await browser.assertCount('list-item', 5);
-});
-```
-
-| Assertion Method                         | Description                             |
+| Method                                   | Description                             |
 | ---------------------------------------- | --------------------------------------- |
 | `assertVisible(selector)`                | Assert element is visible               |
 | `assertHidden(selector)`                 | Assert element is hidden or not present |
@@ -228,137 +197,31 @@ await withBrowser(async browser => {
 | `assertTitle(expected, exact?)`          | Assert page title matches               |
 | `assertCount(selector, count)`           | Assert number of matching elements      |
 
-**Error Messages:**
-
-Assertions throw descriptive errors on failure:
-
-```
-Assertion failed: Text mismatch
-  Selector: [data-testid="welcome"]
-  Expected: "Hello, User"
-  Actual: "Welcome, Guest"
-  Mode: exact
-```
+For detailed examples and patterns, see **[Writing Tests with Puppet](docs/writing-tests-with-puppet.md)**.
 
 ---
 
 ## Test Runner Integration
 
-First-class integration with Vitest for browser testing. Provides a `page` fixture and custom matchers for clean, expressive tests.
-
-### Setup
-
-Install Vitest as a dev dependency:
-
-```bash
-npm install -D vitest
-```
-
-### Writing Tests
+First-class Vitest integration with custom matchers for clean, expressive browser tests.
 
 ```typescript
-import { test, expect, setupPuppet, describe } from 'puppet/test';
+import { test, expect, setupPuppet } from 'puppet/test';
 
-// Setup cleanup on test completion
 setupPuppet();
 
-describe('Login Flow', () => {
-  test('user can login', async ({ page }) => {
-    await page.goto('https://example.com/login');
-    await page.type('email', 'user@example.com');
-    await page.type('password', 'secret123');
-    await page.click('submit');
+test('user can login', async ({ page }) => {
+  await page.goto('/login');
+  await page.type('email', 'user@example.com');
+  await page.type('password', 'secret123');
+  await page.click('submit');
 
-    // Custom matchers
-    await expect(page).toHaveURL('/dashboard');
-    await expect(page).toHaveTitle('Dashboard');
-    await expect(page).toHaveText('welcome', 'Hello, User');
-  });
-
-  test('shows error on invalid credentials', async ({ page }) => {
-    await page.goto('https://example.com/login');
-    await page.type('email', 'wrong@example.com');
-    await page.type('password', 'wrong');
-    await page.click('submit');
-
-    await expect(page).toBeVisible('error-message');
-    await expect(page).toHaveText('error-message', 'Invalid credentials');
-  });
+  await expect(page).toHaveURL('/dashboard');
+  await expect(page).toHaveText('welcome', 'Hello, User');
 });
 ```
 
-### Custom Matchers
-
-| Matcher                           | Description                        |
-| --------------------------------- | ---------------------------------- |
-| `toHaveURL(expected)`             | Assert URL matches (partial)       |
-| `toHaveTitle(expected)`           | Assert title matches (partial)     |
-| `toHaveText(selector, expected)`  | Assert element contains text       |
-| `toBeVisible(selector)`           | Assert element is visible          |
-| `toBeHidden(selector)`            | Assert element is hidden           |
-| `toHaveValue(selector, expected)` | Assert input value matches         |
-| `toBeChecked(selector)`           | Assert checkbox is checked         |
-| `toBeEnabled(selector)`           | Assert element is enabled          |
-| `toBeDisabled(selector)`          | Assert element is disabled         |
-| `toHaveCount(selector, count)`    | Assert number of matching elements |
-
-### Configuration
-
-Create a `puppet.config.ts` file for project-wide settings:
-
-```typescript
-import { defineConfig } from 'puppet/test';
-
-export default defineConfig({
-  baseURL: 'http://localhost:3000',
-  headless: true,
-  timeout: 30000,
-  screenshotOnFailure: true,
-  screenshotDir: './test-results',
-});
-```
-
-### Configuration Options
-
-| Option                | Default            | Description                       |
-| --------------------- | ------------------ | --------------------------------- |
-| `baseURL`             | `''`               | Base URL for relative navigation  |
-| `headless`            | `true`             | Run browser in headless mode      |
-| `slowMo`              | `0`                | Slow down actions (ms)            |
-| `timeout`             | `30000`            | Default action timeout (ms)       |
-| `screenshotOnFailure` | `true`             | Take screenshot on test failure   |
-| `screenshotDir`       | `'./test-results'` | Directory for failure screenshots |
-
-### Running Tests
-
-```bash
-# Run all tests
-npx vitest run
-
-# Run specific test file
-npx vitest run tests/login.test.ts
-
-# Watch mode
-npx vitest
-
-# With coverage
-npx vitest run --coverage
-```
-
-### Vitest Configuration
-
-Add to your `vitest.config.ts`:
-
-```typescript
-import { defineConfig } from 'vitest/config';
-
-export default defineConfig({
-  test: {
-    testTimeout: 60000, // Browser tests need more time
-    hookTimeout: 30000,
-  },
-});
-```
+**For comprehensive testing documentation**, including setup, matchers, patterns, and best practices, see **[Writing Tests with Puppet](docs/writing-tests-with-puppet.md)**.
 
 ---
 
