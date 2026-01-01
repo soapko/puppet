@@ -117,11 +117,18 @@ const session = await startSession({
   headless: false,
   commandFile: '~/.puppet/commands.json', // Default
   resultFile: '~/.puppet/results.json', // Default
+  statusFile: '~/.puppet/status.json', // Default
 });
 
 // Session is now running and watching for commands
 console.log('Session running:', session.isRunning());
+console.log('Browser connected:', session.isBrowserConnected());
 console.log('Current URL:', session.getUrl());
+
+// If browser dies unexpectedly, recover with restart()
+if (!session.isRunning()) {
+  await session.restart();
+}
 
 // Close when done
 await session.close();
@@ -304,10 +311,20 @@ await sendCommand({ action: 'click', params: { selector: '.morelink' } });
 
 ### Session Functions
 
-| Function                         | Description                     |
-| -------------------------------- | ------------------------------- |
-| `startSession(options?)`         | Start interactive session       |
-| `sendCommand(command, options?)` | Send command to running session |
+| Function                         | Description                                          |
+| -------------------------------- | ---------------------------------------------------- |
+| `startSession(options?)`         | Start interactive session                            |
+| `sendCommand(command, options?)` | Send command to running session (fails fast if dead) |
+
+### Session Methods
+
+| Method                 | Description                                       |
+| ---------------------- | ------------------------------------------------- |
+| `close()`              | Close the session and browser                     |
+| `getUrl()`             | Get the current page URL                          |
+| `isRunning()`          | Check if session is running and browser connected |
+| `isBrowserConnected()` | Check if browser is still connected               |
+| `restart()`            | Restart session with fresh browser (for recovery) |
 
 ---
 
@@ -340,6 +357,7 @@ interface CursorOptions {
 interface SessionOptions {
   commandFile?: string; // Default: ~/.puppet/commands.json
   resultFile?: string; // Default: ~/.puppet/results.json
+  statusFile?: string; // Default: ~/.puppet/status.json
   headless?: boolean; // Default: false
   viewport?: { width: number; height: number };
 }
@@ -353,15 +371,32 @@ interface SessionOptions {
 
 If the browser window is closed manually or crashes while a session is running:
 
-1. The session process will detect the closure and exit
-2. Restart the session (from the puppet directory):
-   ```bash
-   cd /path/to/puppet
-   node start-session.mjs
-   ```
-3. Any pending commands in `~/.puppet/commands.json` will be processed on restart
+1. The session automatically detects the closure via event listeners
+2. `session.isRunning()` and `session.isBrowserConnected()` will return `false`
+3. `sendCommand()` will fail fast with a clear error instead of timing out
+4. Call `session.restart()` to recover without recreating the session
 
-To prevent accidental closure, avoid interacting with the browser window directly during automated sessions.
+**Example recovery pattern:**
+
+```javascript
+const result = await sendCommand({ action: 'click', params: { selector: '.btn' } });
+
+if (!result.success && result.error?.includes('disconnected')) {
+  console.log('Browser died, restarting...');
+  await session.restart();
+  // Retry the command
+  await sendCommand({ action: 'click', params: { selector: '.btn' } });
+}
+```
+
+**Or check before sending:**
+
+```javascript
+if (!session.isRunning()) {
+  await session.restart();
+}
+await sendCommand({ action: 'goto', params: { url: 'https://example.com' } });
+```
 
 ### Session Server Not Responding
 
