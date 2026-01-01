@@ -1,10 +1,10 @@
 import { watch, type FSWatcher } from 'fs';
 import { readFile, writeFile, mkdir } from 'fs/promises';
-import { dirname } from 'path';
 import { homedir } from 'os';
-import type { Page, Browser } from 'playwright';
+import { dirname } from 'path';
+
 import { getBrowser } from './browser.js';
-import { createCursor, Cursor } from './cursor.js';
+import { createCursor } from './cursor.js';
 import type { SessionOptions, Command, CommandResult, Session } from './types.js';
 
 const DEFAULT_COMMAND_FILE = `${homedir()}/.puppet/commands.json`;
@@ -48,6 +48,19 @@ export async function startSession(options: SessionOptions = {}): Promise<Sessio
   });
   log.info('Browser launched');
 
+  // Auto-accept dialogs (confirm, alert, prompt) for testing
+  let dialogAction: 'accept' | 'dismiss' = 'accept';
+  let lastDialogMessage = '';
+  page.on('dialog', async dialog => {
+    lastDialogMessage = dialog.message();
+    log.info(`Dialog (${dialog.type()}): "${lastDialogMessage}" - ${dialogAction}ing`);
+    if (dialogAction === 'accept') {
+      await dialog.accept();
+    } else {
+      await dialog.dismiss();
+    }
+  });
+
   const cursor = createCursor(page);
 
   let running = true;
@@ -64,12 +77,21 @@ export async function startSession(options: SessionOptions = {}): Promise<Sessio
       let result: unknown = null;
 
       switch (action) {
+        case 'init':
+        case 'noop':
+          // No-op commands for session initialization
+          break;
+
         case 'goto':
           await page.goto(params.url as string);
           break;
 
         case 'click':
           await cursor.click(params.selector as string);
+          break;
+
+        case 'clear':
+          await page.locator(params.selector as string).clear();
           break;
 
         case 'type':
@@ -111,6 +133,15 @@ export async function startSession(options: SessionOptions = {}): Promise<Sessio
 
         case 'close':
           running = false;
+          break;
+
+        case 'setDialogAction':
+          dialogAction = (params.action as 'accept' | 'dismiss') ?? 'accept';
+          result = dialogAction;
+          break;
+
+        case 'getLastDialog':
+          result = lastDialogMessage;
           break;
 
         default:
@@ -185,7 +216,7 @@ export async function startSession(options: SessionOptions = {}): Promise<Sessio
   });
 
   // Handle watcher errors
-  watcher.on('error', (err) => {
+  watcher.on('error', err => {
     log.error('File watcher error:', err);
   });
 
@@ -244,7 +275,7 @@ export async function sendCommand(
     } catch {
       // Ignore errors
     }
-    await new Promise((r) => setTimeout(r, 50));
+    await new Promise(r => setTimeout(r, 50));
   }
 
   throw new Error(`Command timed out after ${timeout}ms`);

@@ -1,5 +1,6 @@
 import { chromium } from 'playwright';
 import type { Browser, BrowserContext, Page } from 'playwright';
+
 import type { BrowserOptions, BrowserInstance } from './types.js';
 
 /** Default viewport mimicking common desktop resolution */

@@ -44,8 +44,11 @@ export interface SessionOptions {
 }
 
 export type CommandAction =
+  | 'init'
+  | 'noop'
   | 'goto'
   | 'click'
+  | 'clear'
   | 'type'
   | 'scroll'
   | 'screenshot'
@@ -53,7 +56,9 @@ export type CommandAction =
   | 'waitFor'
   | 'getUrl'
   | 'getTitle'
-  | 'close';
+  | 'close'
+  | 'setDialogAction'
+  | 'getLastDialog';
 
 export interface Command {
   id: string;

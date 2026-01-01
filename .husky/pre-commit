@@ -1,0 +1,5 @@
+# Type check (warnings only, doesn't block commit)
+npm run type-check || echo "Warning: Type errors found (not blocking commit)"
+
+# Lint and format staged files
+npx lint-staged

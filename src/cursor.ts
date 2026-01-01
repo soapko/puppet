@@ -1,8 +1,9 @@
-import type { Page } from 'playwright';
 import {
   createCursor as createGhostCursor,
   type Cursor as GhostCursor,
 } from 'ghost-cursor-playwright';
+import type { Page } from 'playwright';
+
 import type { CursorOptions } from './types.js';
 
 /**
@@ -156,7 +157,7 @@ export class Cursor {
    */
   private async randomDelay(min: number, max: number): Promise<void> {
     const delay = min + Math.random() * (max - min);
-    await new Promise((resolve) => setTimeout(resolve, delay * this.options.moveSpeed));
+    await new Promise(resolve => setTimeout(resolve, delay * this.options.moveSpeed));
   }
 }
 
