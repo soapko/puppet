@@ -22,7 +22,17 @@
  */
 
 // Test runner
-export { test, expect, describe, it, setupPuppet, beforeAll, afterAll } from './runner.js';
+export {
+  test,
+  expect,
+  describe,
+  it,
+  setupPuppet,
+  beforeAll,
+  afterAll,
+  beforeEach,
+  afterEach,
+} from './runner.js';
 
 // Configuration
 export { defineConfig, getConfig, resetConfig, resolveURL } from './config.js';

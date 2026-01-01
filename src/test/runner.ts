@@ -89,6 +89,6 @@ export const expect = baseExpect;
 /**
  * Re-export describe and other test utilities
  */
-export { beforeAll, afterAll } from 'vitest';
+export { beforeAll, afterAll, beforeEach, afterEach } from 'vitest';
 export const describe = baseDescribe;
 export const it = test;
