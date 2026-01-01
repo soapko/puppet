@@ -43,12 +43,13 @@ await browser.close();
 
 ## Usage Modes
 
-Puppet supports four usage modes:
+Puppet supports five usage modes:
 
 1. **Fluent API** (Recommended) - Clean, method-based interface with smart selectors
 2. **HTTP Server Mode** - REST API for language-agnostic browser automation
-3. **Script Mode** - Full programmatic control with Playwright page access
-4. **Interactive Mode** - Persistent browser session controlled via file-based commands
+3. **Stdio Mode** - JSON protocol over stdin/stdout for subprocess integration
+4. **Script Mode** - Full programmatic control with Playwright page access
+5. **Interactive Mode** - Persistent browser session controlled via file-based commands
 
 ---
 
@@ -108,19 +109,29 @@ console.log(welcome);
 await browser.close();
 ```
 
-### Selector Shorthand
+### Smart Selectors
 
-The fluent API uses smart selector resolution - bare strings are treated as `data-testid` values:
+The fluent API uses smart selector resolution - bare alphanumeric strings are treated as `data-testid` values, while CSS selectors and HTML tags are preserved:
 
 ```javascript
-// These are equivalent:
-await browser.click('submit-btn'); // Bare string = testid
-await browser.click('[data-testid="submit-btn"]'); // Explicit selector
+// Bare strings become testids:
+await browser.click('submit-btn'); // → [data-testid="submit-btn"]
+await browser.click('loginForm'); // → [data-testid="loginForm"]
 
-// CSS selectors still work (., #, [ prefixes)
+// CSS selectors pass through unchanged:
 await browser.click('.btn-primary'); // Class selector
 await browser.click('#submit'); // ID selector
 await browser.click('[name="email"]'); // Attribute selector
+await browser.click(':first-child'); // Pseudo selector
+
+// HTML tags are preserved:
+await browser.click('button'); // → button
+await browser.click('input'); // → input
+
+// Complex selectors work:
+await browser.click('form input'); // Descendant
+await browser.click('ul > li'); // Child combinator
+await browser.click('div.foo'); // Tag with class
 ```
 
 You can also use the `testid` helper for explicit conversion:
@@ -332,6 +343,114 @@ requests.post(f"{BASE}/command", json={
   "sessionRunning": true
 }
 ```
+
+---
+
+## Stdio Mode
+
+Stdio mode accepts JSON commands via stdin and outputs JSON results to stdout. One command per line, one result per line. Ideal for subprocess integration from any language.
+
+### Starting Stdio Mode
+
+```bash
+# Start with headless browser
+npx puppet stdio --headless
+
+# Start with visible browser
+npx puppet stdio
+```
+
+### Protocol
+
+**Initial output (browser ready):**
+
+```json
+{ "ready": true }
+```
+
+**Input format (one JSON per line):**
+
+```json
+{"action":"goto","params":{"url":"https://example.com"}}
+{"action":"getTitle"}
+{"action":"close"}
+```
+
+**Output format (one JSON per line):**
+
+```json
+{"id":"...","success":true,"result":null}
+{"id":"...","success":true,"result":"Example Domain"}
+{"id":"...","success":true,"result":null}
+```
+
+### From Shell
+
+```bash
+# Pipe commands (logs go to stderr, JSON to stdout)
+echo '{"action":"goto","params":{"url":"https://example.com"}}
+{"action":"getTitle"}
+{"action":"close"}' | npx puppet stdio --headless 2>/dev/null
+```
+
+### From Node.js
+
+```javascript
+import { spawn } from 'child_process';
+
+const puppet = spawn('npx', ['puppet', 'stdio', '--headless']);
+
+// Read JSON lines from stdout
+puppet.stdout.on('data', data => {
+  for (const line of data.toString().split('\n').filter(Boolean)) {
+    console.log('Result:', JSON.parse(line));
+  }
+});
+
+// Send commands
+function send(command) {
+  puppet.stdin.write(JSON.stringify(command) + '\n');
+}
+
+// Wait for ready signal, then use
+send({ action: 'goto', params: { url: 'https://example.com' } });
+send({ action: 'getTitle' });
+send({ action: 'close' });
+```
+
+### From Python
+
+```python
+import subprocess
+import json
+
+proc = subprocess.Popen(
+    ['npx', 'puppet', 'stdio', '--headless'],
+    stdin=subprocess.PIPE,
+    stdout=subprocess.PIPE,
+    stderr=subprocess.DEVNULL,
+    text=True
+)
+
+def send(command):
+    proc.stdin.write(json.dumps(command) + '\n')
+    proc.stdin.flush()
+    return json.loads(proc.stdout.readline())
+
+# Wait for ready
+ready = json.loads(proc.stdout.readline())
+print('Ready:', ready)
+
+# Use it
+send({'action': 'goto', 'params': {'url': 'https://example.com'}})
+result = send({'action': 'getTitle'})
+print('Title:', result['result'])
+send({'action': 'close'})
+```
+
+### Available Commands
+
+All commands from Interactive Mode work in Stdio Mode. See the [Available Commands](#available-commands) section for the full list.
 
 ---
 

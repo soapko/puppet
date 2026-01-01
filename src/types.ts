@@ -116,6 +116,8 @@ export interface Session {
   isBrowserConnected(): boolean;
   /** Restart the session with a fresh browser */
   restart(): Promise<void>;
+  /** Send a command directly to the session (bypasses file IPC) */
+  command(cmd: Omit<Command, 'id'>): Promise<CommandResult>;
 }
 
 // Re-export Playwright types for convenience

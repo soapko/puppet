@@ -8,9 +8,9 @@ Overview of implemented features and important implementation details.
 
 **Implemented:** 2026-01-01
 
-### TestID Shorthand
+### TestID Shorthand & Smart Selector Resolution
 
-Selector resolution that treats bare strings as `data-testid` values:
+Intelligent selector resolution in `src/selectors.ts` that auto-detects selector type:
 
 ```typescript
 // In session.ts processCommand
@@ -22,11 +22,28 @@ if (params.selector && typeof params.selector === 'string') {
 }
 ```
 
+**Resolution Rules:**
+
+| Input          | Type       | Resolved                     |
+| -------------- | ---------- | ---------------------------- |
+| `submit-btn`   | testid     | `[data-testid="submit-btn"]` |
+| `loginForm`    | testid     | `[data-testid="loginForm"]`  |
+| `#submit`      | CSS ID     | `#submit`                    |
+| `.btn`         | CSS class  | `.btn`                       |
+| `[name=email]` | attribute  | `[name=email]`               |
+| `button`       | HTML tag   | `button`                     |
+| `div.class`    | complex    | `div.class`                  |
+| `form input`   | descendant | `form input`                 |
+| `ul > li`      | child      | `ul > li`                    |
+| `:first-child` | pseudo     | `:first-child`               |
+
 **Usage:**
 
 - `testid` param: `{ action: 'click', params: { testid: 'btn' } }`
 - Smart resolution: `{ action: 'click', params: { selector: 'btn' } }` → `[data-testid="btn"]`
 - CSS selectors pass through: `.class`, `#id`, `[attr]`
+- HTML tags preserved: `button`, `input`, `div`, etc.
+- Complex selectors preserved: `form input`, `ul > li`, `div.foo`
 
 ### Fluent API (`src/fluent.ts`)
 
@@ -217,3 +234,42 @@ const server = await serve({ port: 3000, headless: true });
 - POST `/command` for any command
 - Health check with browser/session status
 - Graceful shutdown on `/close`
+
+---
+
+## Stdio JSON Protocol
+
+**Implemented:** 2026-01-01
+
+JSON protocol over stdin/stdout for subprocess integration.
+
+### Files
+
+- `src/stdio.ts` - Stdio mode implementation
+- `src/cli.ts` - CLI entry point (`puppet stdio`)
+
+### Starting Stdio Mode
+
+```bash
+npx puppet stdio --headless
+```
+
+### Protocol
+
+- Outputs `{"ready":true}` when browser is initialized
+- Accepts one JSON command per line on stdin
+- Outputs one JSON result per line on stdout
+- Session logs go to stderr (can be suppressed with `2>/dev/null`)
+
+### Session Direct Command
+
+The Session interface now exposes a `command()` method for direct command execution:
+
+```typescript
+interface Session {
+  // ...existing methods...
+  command(cmd: Omit<Command, 'id'>): Promise<CommandResult>;
+}
+```
+
+This bypasses file-based IPC and enables stdio mode to process commands directly.

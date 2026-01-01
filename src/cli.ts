@@ -4,6 +4,7 @@
  *
  * Usage:
  *   puppet serve [options]    Start HTTP server mode
+ *   puppet stdio [options]    Start stdio JSON protocol mode
  *   puppet --help             Show help
  *
  * Options:
@@ -14,6 +15,7 @@
  */
 
 import { serve } from './server.js';
+import { runStdio } from './stdio.js';
 
 function printHelp() {
   console.log(`
@@ -21,6 +23,7 @@ Puppet CLI - Browser automation with human-like cursor movements
 
 Usage:
   puppet serve [options]    Start HTTP server mode
+  puppet stdio [options]    Start stdio JSON protocol mode
 
 Options:
   --port=PORT        HTTP server port (default: 3000)
@@ -33,6 +36,15 @@ Examples:
   puppet serve                    Start server on port 3000
   puppet serve --port=8080        Start server on port 8080
   puppet serve --headless         Start with headless browser
+  puppet stdio --headless         Start stdio mode headless
+
+Stdio Mode:
+  Reads JSON commands from stdin, writes JSON results to stdout.
+  One command per line, one result per line.
+
+  Input:  {"action":"goto","params":{"url":"https://example.com"}}
+  Output: {"ready":true}
+          {"success":true,"result":{}}
 
 HTTP Endpoints:
   POST /command     Execute any command (JSON body)
@@ -72,6 +84,13 @@ async function main() {
       const headless = hasFlag('--headless') && !hasFlag('--no-headless');
 
       await serve({ port, host, headless });
+      break;
+    }
+
+    case 'stdio': {
+      const headless = hasFlag('--headless') && !hasFlag('--no-headless');
+
+      await runStdio({ headless });
       break;
     }
 

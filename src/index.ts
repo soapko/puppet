@@ -11,6 +11,10 @@ export { startSession, sendCommand } from './session.js';
 export { serve, stopServer } from './server.js';
 export type { ServerOptions } from './server.js';
 
+// Stdio mode
+export { runStdio } from './stdio.js';
+export type { StdioOptions } from './stdio.js';
+
 // Fluent API
 export { puppet, withBrowser, Browser } from './fluent.js';
 

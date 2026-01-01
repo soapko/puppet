@@ -54,12 +54,12 @@ function isBrowserDeadError(err: unknown): boolean {
   );
 }
 
-// Simple logger for session debugging
+// Simple logger for session debugging (all output to stderr to keep stdout clean for protocols)
 const log = {
-  info: (msg: string, ...args: unknown[]) => console.log(`[puppet:session] ${msg}`, ...args),
+  info: (msg: string, ...args: unknown[]) => console.error(`[puppet:session] ${msg}`, ...args),
   error: (msg: string, ...args: unknown[]) => console.error(`[puppet:session] ${msg}`, ...args),
   debug: (msg: string, ...args: unknown[]) => {
-    if (process.env.PUPPET_DEBUG) console.log(`[puppet:session:debug] ${msg}`, ...args);
+    if (process.env.PUPPET_DEBUG) console.error(`[puppet:session:debug] ${msg}`, ...args);
   },
 };
 
@@ -747,6 +747,11 @@ export async function startSession(options: SessionOptions = {}): Promise<Sessio
 
     isBrowserConnected() {
       return browserConnected;
+    },
+
+    async command(cmd: Omit<Command, 'id'>) {
+      const id = `direct-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+      return processCommand({ ...cmd, id } as Command);
     },
 
     async restart() {

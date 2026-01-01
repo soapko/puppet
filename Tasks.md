@@ -31,8 +31,8 @@
 
 - [✅] Built-in assertions -> [002.feature.13-built-in-assertions.md](docs/tasks/002.feature.13-built-in-assertions.md)
 - [✅] HTTP server mode -> [002.feature.14-http-server-mode.md](docs/tasks/002.feature.14-http-server-mode.md)
-- [ ] Stdio JSON protocol -> [002.feature.15-stdio-protocol.md](docs/tasks/002.feature.15-stdio-protocol.md)
-- [ ] Smart selector resolution -> [002.feature.16-smart-selector-resolution.md](docs/tasks/002.feature.16-smart-selector-resolution.md)
+- [✅] Stdio JSON protocol -> [002.feature.15-stdio-protocol.md](docs/tasks/002.feature.15-stdio-protocol.md)
+- [✅] Smart selector resolution -> [002.feature.16-smart-selector-resolution.md](docs/tasks/002.feature.16-smart-selector-resolution.md)
 
 #### Low Priority (Future)
 
