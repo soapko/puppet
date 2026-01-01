@@ -10,6 +10,22 @@ import type { SessionOptions, Command, CommandResult, Session } from './types.js
 const DEFAULT_COMMAND_FILE = `${homedir()}/.puppet/commands.json`;
 const DEFAULT_RESULT_FILE = `${homedir()}/.puppet/results.json`;
 
+/**
+ * Check if an error indicates the browser/page is dead
+ */
+function isBrowserDeadError(err: unknown): boolean {
+  if (!(err instanceof Error)) return false;
+  const msg = err.message.toLowerCase();
+  return (
+    msg.includes('target closed') ||
+    msg.includes('browser has been closed') ||
+    msg.includes('context has been closed') ||
+    msg.includes('page has been closed') ||
+    msg.includes('browser.newcontext') ||
+    msg.includes('has been closed')
+  );
+}
+
 // Simple logger for session debugging
 const log = {
   info: (msg: string, ...args: unknown[]) => console.log(`[puppet:session] ${msg}`, ...args),
@@ -42,28 +58,50 @@ export async function startSession(options: SessionOptions = {}): Promise<Sessio
 
   // Launch browser
   log.info('Launching browser...');
-  const { browser, page } = await getBrowser({
+  let { browser, page } = await getBrowser({
     headless: options.headless ?? false,
     viewport: options.viewport,
   });
   log.info('Browser launched');
 
-  // Auto-accept dialogs (confirm, alert, prompt) for testing
+  let cursor = createCursor(page);
+  let running = true;
+  let browserConnected = true;
+
+  // Dialog handling state
   let dialogAction: 'accept' | 'dismiss' = 'accept';
   let lastDialogMessage = '';
-  page.on('dialog', async dialog => {
-    lastDialogMessage = dialog.message();
-    log.info(`Dialog (${dialog.type()}): "${lastDialogMessage}" - ${dialogAction}ing`);
-    if (dialogAction === 'accept') {
-      await dialog.accept();
-    } else {
-      await dialog.dismiss();
-    }
-  });
 
-  const cursor = createCursor(page);
+  /**
+   * Attach event listeners to browser and page
+   */
+  function attachEventListeners() {
+    // Handle browser disconnect
+    browser.on('disconnected', () => {
+      log.error('Browser disconnected unexpectedly');
+      browserConnected = false;
+      running = false;
+    });
 
-  let running = true;
+    // Handle page close
+    page.on('close', () => {
+      log.error('Page closed unexpectedly');
+      running = false;
+    });
+
+    // Auto-accept dialogs (confirm, alert, prompt) for testing
+    page.on('dialog', async dialog => {
+      lastDialogMessage = dialog.message();
+      log.info(`Dialog (${dialog.type()}): "${lastDialogMessage}" - ${dialogAction}ing`);
+      if (dialogAction === 'accept') {
+        await dialog.accept();
+      } else {
+        await dialog.dismiss();
+      }
+    });
+  }
+
+  attachEventListeners();
   let lastCommandId = '';
   let watcher: FSWatcher | null = null;
 
@@ -72,6 +110,16 @@ export async function startSession(options: SessionOptions = {}): Promise<Sessio
     const { id, action, params = {} } = cmd;
     log.info(`Processing command: ${action} (id: ${id})`);
     log.debug('Command params:', params);
+
+    // Health check - fail fast if browser is dead
+    if (!browserConnected) {
+      log.error('Cannot process command: browser is disconnected');
+      return {
+        id,
+        success: false,
+        error: 'Browser disconnected. Call restart() to recover.',
+      };
+    }
 
     try {
       let result: unknown = null;
@@ -153,10 +201,18 @@ export async function startSession(options: SessionOptions = {}): Promise<Sessio
     } catch (err) {
       const errorMsg = err instanceof Error ? err.message : String(err);
       log.error(`Command ${action} failed:`, errorMsg);
+
+      // Detect if browser died during command execution
+      if (isBrowserDeadError(err)) {
+        log.error('Browser appears to be dead, marking session as disconnected');
+        browserConnected = false;
+        running = false;
+      }
+
       return {
         id,
         success: false,
-        error: errorMsg,
+        error: browserConnected ? errorMsg : `${errorMsg} (browser disconnected)`,
       };
     }
   }
@@ -205,8 +261,16 @@ export async function startSession(options: SessionOptions = {}): Promise<Sessio
       watcher.close();
       watcher = null;
     }
-    await browser.close();
-    log.info('Browser closed');
+    // Only try to close browser if it's still connected
+    if (browserConnected) {
+      try {
+        await browser.close();
+        log.info('Browser closed');
+      } catch (err) {
+        log.debug('Browser already closed or errored during close:', err);
+      }
+    }
+    browserConnected = false;
   }
 
   // Start watching for commands
@@ -237,11 +301,55 @@ export async function startSession(options: SessionOptions = {}): Promise<Sessio
       await cleanup();
       clearInterval(pollInterval);
     },
+
     getUrl() {
       return page.url();
     },
+
     isRunning() {
-      return running;
+      return running && browserConnected;
+    },
+
+    isBrowserConnected() {
+      return browserConnected;
+    },
+
+    async restart() {
+      log.info('Restarting session...');
+
+      // Clean up existing session
+      await cleanup();
+
+      // Launch new browser
+      log.info('Launching new browser...');
+      const newInstance = await getBrowser({
+        headless: options.headless ?? false,
+        viewport: options.viewport,
+      });
+      browser = newInstance.browser;
+      page = newInstance.page;
+      cursor = createCursor(page);
+
+      // Reset state
+      browserConnected = true;
+      running = true;
+      lastCommandId = '';
+      dialogAction = 'accept';
+      lastDialogMessage = '';
+
+      // Reattach event listeners
+      attachEventListeners();
+
+      // Restart file watcher
+      log.info('Restarting file watcher on:', commandFile);
+      watcher = watch(commandFile, { persistent: true }, () => {
+        checkCommands();
+      });
+      watcher.on('error', err => {
+        log.error('File watcher error:', err);
+      });
+
+      log.info('Session restarted and ready');
     },
   };
 }

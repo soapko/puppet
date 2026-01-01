@@ -78,8 +78,12 @@ export interface Session {
   close(): Promise<void>;
   /** Get the current page URL */
   getUrl(): string;
-  /** Check if session is running */
+  /** Check if session is running and browser is connected */
   isRunning(): boolean;
+  /** Check if browser is still connected */
+  isBrowserConnected(): boolean;
+  /** Restart the session with a fresh browser */
+  restart(): Promise<void>;
 }
 
 // Re-export Playwright types for convenience
