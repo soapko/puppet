@@ -4,6 +4,73 @@ Overview of implemented features and important implementation details.
 
 ---
 
+## Recording Mode
+
+**Implemented:** 2026-01-01
+
+Record user interactions and automatically generate test scripts.
+
+### Files
+
+- `src/recorder/generator.ts` - Code generator (puppet/playwright formats)
+- `src/recorder/injected.ts` - Browser-injected event capture script
+- `src/recorder/index.ts` - Main recording orchestrator
+- `src/cli.ts` - CLI entry point (`puppet record`)
+
+### Starting the Recorder
+
+```bash
+# Basic recording
+npx puppet record
+
+# With starting URL
+npx puppet record --url=https://example.com
+
+# Save to file
+npx puppet record --url=https://example.com --output=tests/login.test.ts
+
+# Generate Playwright format instead
+npx puppet record --url=https://example.com --format=playwright
+```
+
+### How It Works
+
+1. Launches visible browser with injected recorder script
+2. Captures clicks, typing (debounced), select changes, checkboxes
+3. Prioritizes `data-testid` selectors, falls back to CSS path
+4. On Ctrl+C or browser close, generates test code
+5. Optionally saves to specified output file
+
+### Programmatic Usage
+
+```typescript
+import { startRecording, generateTestCode } from 'puppet';
+
+// Record interactively
+const code = await startRecording({
+  url: 'https://example.com',
+  output: 'tests/recorded.test.ts',
+  format: 'puppet',
+});
+
+// Or generate code from events manually
+const events = [
+  { type: 'goto', selector: '', value: 'https://example.com', timestamp: Date.now() },
+  { type: 'click', selector: '[data-testid="login-btn"]', timestamp: Date.now() },
+];
+const testCode = generateTestCode(events);
+```
+
+### Selector Priority
+
+1. `data-testid` attribute (best for stability)
+2. `id` attribute (if not dynamically generated)
+3. `name` attribute (for form elements)
+4. Unique class combination
+5. CSS path (fallback)
+
+---
+
 ## WebSocket Mode
 
 **Implemented:** 2026-01-01

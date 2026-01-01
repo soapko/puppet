@@ -23,6 +23,10 @@ export type { WebSocketServerOptions } from './websocket.js';
 export { startRepl } from './repl.js';
 export type { ReplOptions } from './repl.js';
 
+// Recording mode
+export { startRecording, generateTestCode, simplifySelector } from './recorder/index.js';
+export type { RecordOptions, RecordedEvent, GeneratorOptions } from './recorder/index.js';
+
 // Fluent API
 export { puppet, withBrowser, Browser } from './fluent.js';
 

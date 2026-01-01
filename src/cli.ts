@@ -14,6 +14,7 @@
  *   --no-headless      Run browser with visible window (default)
  */
 
+import { startRecording } from './recorder/index.js';
 import { startRepl } from './repl.js';
 import { serve } from './server.js';
 import { runStdio } from './stdio.js';
@@ -28,12 +29,16 @@ Usage:
   puppet stdio [options]    Start stdio JSON protocol mode
   puppet ws [options]       Start WebSocket server mode
   puppet repl               Start interactive REPL mode
+  puppet record [options]   Record user interactions and generate test code
 
 Options:
   --port=PORT        Server port (default: 3000 for HTTP, 3001 for WS)
   --host=HOST        Server host (default: localhost)
   --headless         Run browser in headless mode
   --no-headless      Run browser with visible window (default)
+  --url=URL          Starting URL for record mode
+  --output=FILE      Output file for generated test (record mode)
+  --format=FORMAT    Output format: puppet (default) or playwright
   --help, -h         Show this help message
 
 Examples:
@@ -44,6 +49,9 @@ Examples:
   puppet ws --port=8080           Start WebSocket server on port 8080
   puppet stdio --headless         Start stdio mode headless
   puppet repl                     Start interactive REPL
+  puppet record                   Start recording mode
+  puppet record --url=https://example.com
+  puppet record --url=https://example.com --output=tests/login.test.ts
 
 Stdio Mode:
   Reads JSON commands from stdin, writes JSON results to stdout.
@@ -112,6 +120,15 @@ async function main() {
       const headless = hasFlag('--headless') && !hasFlag('--no-headless');
 
       await serveWebSocket({ port, host, headless });
+      break;
+    }
+
+    case 'record': {
+      const url = getArg('--url=');
+      const output = getArg('--output=');
+      const format = (getArg('--format=') as 'puppet' | 'playwright') || 'puppet';
+
+      await startRecording({ url, output, format });
       break;
     }
 
