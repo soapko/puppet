@@ -9,6 +9,7 @@ import { getBrowser } from './browser.js';
 import { createCursor } from './cursor.js';
 import { getElementErrorContext, formatElementError, isElementNotFoundError } from './errors.js';
 import { executeWithOptionalRetry } from './retry.js';
+import { resolveSelector } from './selectors.js';
 import type { SessionOptions, Command, CommandResult, Session, RetryOptions } from './types.js';
 
 const FAILURE_SCREENSHOT_DIR = `${homedir()}/.puppet/failures`;
@@ -163,6 +164,21 @@ export async function startSession(options: SessionOptions = {}): Promise<Sessio
     const { id, action, params = {} } = cmd;
     log.info(`Processing command: ${action} (id: ${id})`);
     log.debug('Command params:', params);
+
+    // Resolve testid shorthand to selector
+    if (params.testid && !params.selector) {
+      params.selector = `[data-testid="${params.testid}"]`;
+      log.debug(`Resolved testid "${params.testid}" to selector "${params.selector}"`);
+    }
+
+    // Smart selector resolution - bare strings become testid selectors
+    if (params.selector && typeof params.selector === 'string') {
+      const originalSelector = params.selector;
+      params.selector = resolveSelector(params.selector);
+      if (params.selector !== originalSelector) {
+        log.debug(`Resolved selector "${originalSelector}" to "${params.selector}"`);
+      }
+    }
 
     // Health check - fail fast if browser is dead
     if (!browserConnected) {

@@ -8,12 +8,160 @@ Browser automation library with human-like cursor movements. Built on Playwright
 npm install puppet
 ```
 
+## Quick Start (Recommended)
+
+The simplest way to use Puppet is with the fluent API and auto-managed sessions:
+
+```javascript
+import { withBrowser } from 'puppet';
+
+await withBrowser(async browser => {
+  await browser.goto('https://example.com');
+  await browser.click('submit-btn'); // Clicks [data-testid="submit-btn"]
+  await browser.type('email-input', 'test@example.com');
+  await browser.waitForLoaded();
+
+  const message = await browser.text('success-message');
+  console.log(message);
+});
+// Browser automatically closes, even if errors occur
+```
+
+For more control without auto-cleanup:
+
+```javascript
+import { puppet } from 'puppet';
+
+const browser = await puppet({ headless: false });
+await browser.goto('https://example.com');
+await browser.click('login-btn');
+// ... more operations
+await browser.close();
+```
+
+---
+
 ## Usage Modes
 
-Puppet supports two usage modes:
+Puppet supports three usage modes:
 
-1. **Script Mode** - Full programmatic control for automated testing
-2. **Interactive Mode** - Persistent browser session controlled via file-based commands
+1. **Fluent API** (Recommended) - Clean, method-based interface with smart selectors
+2. **Script Mode** - Full programmatic control with Playwright page access
+3. **Interactive Mode** - Persistent browser session controlled via file-based commands
+
+---
+
+## Fluent API (Recommended)
+
+The fluent API provides a clean, intuitive interface for browser automation.
+
+### Auto-Managed Sessions
+
+Use `withBrowser` to ensure the browser always closes, even if errors occur:
+
+```javascript
+import { withBrowser } from 'puppet';
+
+// Basic usage - browser auto-closes
+await withBrowser(async browser => {
+  await browser.goto('https://example.com');
+  await browser.click('submit');
+});
+
+// Return values work
+const title = await withBrowser(async browser => {
+  await browser.goto('https://example.com');
+  return await browser.title();
+});
+
+// Error handling - browser still closes
+try {
+  await withBrowser(async browser => {
+    await browser.goto('https://example.com');
+    throw new Error('Something went wrong');
+  });
+} catch (error) {
+  console.log('Error caught, but browser is cleaned up');
+}
+```
+
+### Manual Session Control
+
+For more control, use `puppet()` directly:
+
+```javascript
+import { puppet } from 'puppet';
+
+const browser = await puppet({ headless: false });
+
+await browser.goto('https://example.com');
+await browser.click('login-btn');
+await browser.type('email', 'user@example.com');
+await browser.type('#password', 'secret'); // CSS selector works too
+await browser.click('submit');
+await browser.waitForLoaded();
+
+const welcome = await browser.text('welcome-message');
+console.log(welcome);
+
+await browser.close();
+```
+
+### Selector Shorthand
+
+The fluent API uses smart selector resolution - bare strings are treated as `data-testid` values:
+
+```javascript
+// These are equivalent:
+await browser.click('submit-btn'); // Bare string = testid
+await browser.click('[data-testid="submit-btn"]'); // Explicit selector
+
+// CSS selectors still work (., #, [ prefixes)
+await browser.click('.btn-primary'); // Class selector
+await browser.click('#submit'); // ID selector
+await browser.click('[name="email"]'); // Attribute selector
+```
+
+You can also use the `testid` helper for explicit conversion:
+
+```javascript
+import { testid } from 'puppet';
+
+console.log(testid('submit')); // '[data-testid="submit"]'
+```
+
+### Browser Methods
+
+| Method                        | Description                     |
+| ----------------------------- | ------------------------------- |
+| `goto(url)`                   | Navigate to URL                 |
+| `click(selector)`             | Click element                   |
+| `type(selector, text)`        | Type text into input            |
+| `clear(selector)`             | Clear input field               |
+| `text(selector)`              | Get element text content        |
+| `value(selector)`             | Get input value                 |
+| `html(selector?)`             | Get HTML (element or full page) |
+| `screenshot(path?)`           | Take screenshot                 |
+| `select(selector, value)`     | Select dropdown option          |
+| `check(selector)`             | Check checkbox                  |
+| `uncheck(selector)`           | Uncheck checkbox                |
+| `hover(selector)`             | Hover over element              |
+| `scroll(direction, amount)`   | Scroll page                     |
+| `wait(ms)`                    | Wait for milliseconds           |
+| `waitFor(selector, timeout?)` | Wait for element                |
+| `waitForLoaded(timeout?)`     | Wait for loading to complete    |
+| `evaluate(script)`            | Execute JavaScript              |
+| `upload(selector, path)`      | Upload file(s)                  |
+| `frame(selector)`             | Switch to iframe                |
+| `mainFrame()`                 | Switch to main frame            |
+| `url()`                       | Get current URL                 |
+| `title()`                     | Get page title                  |
+| `clearState()`                | Clear cookies/storage           |
+| `setDialogAction(action)`     | Set dialog behavior             |
+| `getLastDialog()`             | Get last dialog message         |
+| `close()`                     | Close browser                   |
+| `isRunning()`                 | Check if browser is running     |
+| `restart()`                   | Restart browser session         |
 
 ---
 
@@ -144,11 +292,17 @@ import { sendCommand } from 'puppet';
 // Navigate
 await sendCommand({ action: 'goto', params: { url: 'https://example.com' } });
 
-// Click
+// Click - using testid shorthand
+await sendCommand({ action: 'click', params: { testid: 'login-btn' } });
+
+// Click - bare string selector also works (smart resolution)
+await sendCommand({ action: 'click', params: { selector: 'login-btn' } });
+
+// Click - traditional CSS selector
 await sendCommand({ action: 'click', params: { selector: 'button.login' } });
 
 // Type
-await sendCommand({ action: 'type', params: { selector: 'input', text: 'hello' } });
+await sendCommand({ action: 'type', params: { testid: 'email-input', text: 'hello' } });
 
 // Get result with timeout
 const result = await sendCommand(

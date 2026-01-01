@@ -7,6 +7,12 @@ export { Cursor, createCursor } from './cursor.js';
 // Interactive session
 export { startSession, sendCommand } from './session.js';
 
+// Fluent API
+export { puppet, withBrowser, Browser } from './fluent.js';
+
+// Selector utilities
+export { testid, resolveSelector } from './selectors.js';
+
 // Utilities
 export { withRetry, executeWithOptionalRetry } from './retry.js';
 export { getElementErrorContext, formatElementError, isElementNotFoundError } from './errors.js';
@@ -22,7 +28,7 @@ export type {
   CommandResult,
   Session,
   RetryOptions,
-  Browser,
+  // Playwright types available via 'playwright' import if needed
   BrowserContext,
   Page,
 } from './types.js';
