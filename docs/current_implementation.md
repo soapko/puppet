@@ -170,3 +170,50 @@ Assertion failed: Text mismatch
   Actual: "Welcome"
   Mode: exact
 ```
+
+---
+
+## HTTP Server Mode
+
+**Implemented:** 2026-01-01
+
+REST API for language-agnostic browser automation.
+
+### Files
+
+- `src/server.ts` - HTTP server implementation with REST endpoints
+- `src/cli.ts` - CLI entry point (`puppet serve`)
+
+### Starting the Server
+
+```bash
+# CLI
+npx puppet serve --port=3000 --headless
+
+# Programmatic
+import { serve } from 'puppet';
+const server = await serve({ port: 3000, headless: true });
+```
+
+### Endpoints
+
+| Endpoint      | Method | Description                     |
+| ------------- | ------ | ------------------------------- |
+| `/command`    | POST   | Execute any command (JSON body) |
+| `/goto`       | GET    | Navigate to URL                 |
+| `/click`      | GET    | Click element                   |
+| `/type`       | GET    | Type text                       |
+| `/text`       | GET    | Get text content                |
+| `/screenshot` | GET    | Take screenshot                 |
+| `/url`        | GET    | Get current URL                 |
+| `/title`      | GET    | Get page title                  |
+| `/health`     | GET    | Health check                    |
+| `/close`      | GET    | Close browser and server        |
+
+### Features
+
+- CORS headers for browser access
+- GET shortcuts for common commands
+- POST `/command` for any command
+- Health check with browser/session status
+- Graceful shutdown on `/close`

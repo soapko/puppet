@@ -7,6 +7,10 @@ export { Cursor, createCursor } from './cursor.js';
 // Interactive session
 export { startSession, sendCommand } from './session.js';
 
+// HTTP server mode
+export { serve, stopServer } from './server.js';
+export type { ServerOptions } from './server.js';
+
 // Fluent API
 export { puppet, withBrowser, Browser } from './fluent.js';
 

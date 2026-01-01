@@ -43,11 +43,12 @@ await browser.close();
 
 ## Usage Modes
 
-Puppet supports three usage modes:
+Puppet supports four usage modes:
 
 1. **Fluent API** (Recommended) - Clean, method-based interface with smart selectors
-2. **Script Mode** - Full programmatic control with Playwright page access
-3. **Interactive Mode** - Persistent browser session controlled via file-based commands
+2. **HTTP Server Mode** - REST API for language-agnostic browser automation
+3. **Script Mode** - Full programmatic control with Playwright page access
+4. **Interactive Mode** - Persistent browser session controlled via file-based commands
 
 ---
 
@@ -222,6 +223,114 @@ Assertion failed: Text mismatch
   Expected: "Hello, User"
   Actual: "Welcome, Guest"
   Mode: exact
+```
+
+---
+
+## HTTP Server Mode
+
+Start an HTTP server that accepts browser automation commands via REST API. This enables language-agnostic browser control from any HTTP client.
+
+### Starting the Server
+
+```bash
+# Start with defaults (port 3000, visible browser)
+npx puppet serve
+
+# Custom port, headless browser
+npx puppet serve --port=8080 --headless
+
+# Or programmatically
+import { serve } from 'puppet';
+
+const server = await serve({
+  port: 3000,
+  host: 'localhost',
+  headless: true,
+});
+```
+
+### API Endpoints
+
+| Endpoint         | Method | Params                       | Description                     |
+| ---------------- | ------ | ---------------------------- | ------------------------------- |
+| `/command`       | POST   | JSON body with action/params | Execute any command             |
+| `/goto`          | GET    | `url`                        | Navigate to URL                 |
+| `/click`         | GET    | `selector` or `testid`       | Click element                   |
+| `/type`          | GET    | `selector`, `text`           | Type text into element          |
+| `/text`          | GET    | `selector`                   | Get element text content        |
+| `/value`         | GET    | `selector`                   | Get input value                 |
+| `/screenshot`    | GET    | `path?`, `fullPage?`         | Take screenshot                 |
+| `/url`           | GET    | -                            | Get current URL                 |
+| `/title`         | GET    | -                            | Get page title                  |
+| `/wait`          | GET    | `selector`, `timeout?`       | Wait for element                |
+| `/waitForLoaded` | GET    | `timeout?`                   | Wait for page to finish loading |
+| `/clear`         | GET    | `selector`                   | Clear input field               |
+| `/clearState`    | GET    | `includeIndexedDB?`          | Clear cookies/storage           |
+| `/health`        | GET    | -                            | Health check                    |
+| `/close`         | GET    | -                            | Close browser and server        |
+
+### Usage with curl
+
+```bash
+# Navigate
+curl "http://localhost:3000/goto?url=https://example.com"
+
+# Click a button (using testid)
+curl "http://localhost:3000/click?testid=submit-btn"
+
+# Click with CSS selector
+curl "http://localhost:3000/click?selector=%23login"
+
+# Type text
+curl "http://localhost:3000/type?selector=%23email&text=test@example.com"
+
+# Get text content
+curl "http://localhost:3000/text?selector=h1"
+
+# Screenshot
+curl "http://localhost:3000/screenshot?path=./shot.png"
+
+# Any command via POST
+curl -X POST http://localhost:3000/command \
+  -H "Content-Type: application/json" \
+  -d '{"action":"click","params":{"selector":"#btn"}}'
+
+# Close browser
+curl http://localhost:3000/close
+```
+
+### Usage from Python
+
+```python
+import requests
+
+BASE = "http://localhost:3000"
+
+# Navigate
+requests.get(f"{BASE}/goto", params={"url": "https://example.com"})
+
+# Click using testid
+requests.get(f"{BASE}/click", params={"testid": "login-btn"})
+
+# Type text
+requests.get(f"{BASE}/type", params={"selector": "#email", "text": "user@test.com"})
+
+# Use the command endpoint for any action
+requests.post(f"{BASE}/command", json={
+    "action": "screenshot",
+    "params": {"path": "screenshot.png"}
+})
+```
+
+### Health Check Response
+
+```json
+{
+  "status": "ok",
+  "browserConnected": true,
+  "sessionRunning": true
+}
 ```
 
 ---
