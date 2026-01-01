@@ -403,6 +403,204 @@ export async function startSession(options: SessionOptions = {}): Promise<Sessio
           }));
           break;
 
+        case 'assertVisible': {
+          const selector = params.selector as string;
+          const element = await currentFrame.$(selector);
+          if (!element) {
+            throw new Error(`Assertion failed: Element not found: ${selector}`);
+          }
+          const isVisible = await element.isVisible();
+          if (!isVisible) {
+            throw new Error(`Assertion failed: Element is not visible: ${selector}`);
+          }
+          result = { passed: true };
+          break;
+        }
+
+        case 'assertHidden': {
+          const selector = params.selector as string;
+          const element = await currentFrame.$(selector);
+          if (element) {
+            const isVisible = await element.isVisible();
+            if (isVisible) {
+              throw new Error(
+                `Assertion failed: Element is visible (expected hidden): ${selector}`
+              );
+            }
+          }
+          // Element not found or not visible = passes
+          result = { passed: true };
+          break;
+        }
+
+        case 'assertText': {
+          const selector = params.selector as string;
+          const expected = params.expected as string;
+          const exact = params.exact !== false; // default true
+
+          const element = await currentFrame.$(selector);
+          if (!element) {
+            throw new Error(`Assertion failed: Element not found: ${selector}`);
+          }
+
+          const actual = (await element.textContent()) || '';
+          const matches = exact ? actual.trim() === expected : actual.includes(expected);
+
+          if (!matches) {
+            throw new Error(
+              `Assertion failed: Text mismatch\n` +
+                `  Selector: ${selector}\n` +
+                `  Expected: "${expected}"\n` +
+                `  Actual: "${actual.trim()}"\n` +
+                `  Mode: ${exact ? 'exact' : 'contains'}`
+            );
+          }
+          result = { passed: true, actual: actual.trim() };
+          break;
+        }
+
+        case 'assertValue': {
+          const selector = params.selector as string;
+          const expected = params.expected as string;
+
+          const element = await currentFrame.$(selector);
+          if (!element) {
+            throw new Error(`Assertion failed: Element not found: ${selector}`);
+          }
+
+          const actual = await element.inputValue();
+          if (actual !== expected) {
+            throw new Error(
+              `Assertion failed: Value mismatch\n` +
+                `  Selector: ${selector}\n` +
+                `  Expected: "${expected}"\n` +
+                `  Actual: "${actual}"`
+            );
+          }
+          result = { passed: true, actual };
+          break;
+        }
+
+        case 'assertChecked': {
+          const selector = params.selector as string;
+          const element = await currentFrame.$(selector);
+          if (!element) {
+            throw new Error(`Assertion failed: Element not found: ${selector}`);
+          }
+
+          const isChecked = await element.isChecked();
+          if (!isChecked) {
+            throw new Error(`Assertion failed: Element is not checked: ${selector}`);
+          }
+          result = { passed: true };
+          break;
+        }
+
+        case 'assertUnchecked': {
+          const selector = params.selector as string;
+          const element = await currentFrame.$(selector);
+          if (!element) {
+            throw new Error(`Assertion failed: Element not found: ${selector}`);
+          }
+
+          const isChecked = await element.isChecked();
+          if (isChecked) {
+            throw new Error(
+              `Assertion failed: Element is checked (expected unchecked): ${selector}`
+            );
+          }
+          result = { passed: true };
+          break;
+        }
+
+        case 'assertEnabled': {
+          const selector = params.selector as string;
+          const element = await currentFrame.$(selector);
+          if (!element) {
+            throw new Error(`Assertion failed: Element not found: ${selector}`);
+          }
+
+          const isDisabled = await element.isDisabled();
+          if (isDisabled) {
+            throw new Error(
+              `Assertion failed: Element is disabled (expected enabled): ${selector}`
+            );
+          }
+          result = { passed: true };
+          break;
+        }
+
+        case 'assertDisabled': {
+          const selector = params.selector as string;
+          const element = await currentFrame.$(selector);
+          if (!element) {
+            throw new Error(`Assertion failed: Element not found: ${selector}`);
+          }
+
+          const isDisabled = await element.isDisabled();
+          if (!isDisabled) {
+            throw new Error(
+              `Assertion failed: Element is enabled (expected disabled): ${selector}`
+            );
+          }
+          result = { passed: true };
+          break;
+        }
+
+        case 'assertUrl': {
+          const expected = params.expected as string;
+          const exact = params.exact !== false; // default true
+          const actual = page.url();
+
+          const matches = exact ? actual === expected : actual.includes(expected);
+          if (!matches) {
+            throw new Error(
+              `Assertion failed: URL mismatch\n` +
+                `  Expected: "${expected}"\n` +
+                `  Actual: "${actual}"\n` +
+                `  Mode: ${exact ? 'exact' : 'contains'}`
+            );
+          }
+          result = { passed: true, actual };
+          break;
+        }
+
+        case 'assertTitle': {
+          const expected = params.expected as string;
+          const exact = params.exact !== false; // default true
+          const actual = await page.title();
+
+          const matches = exact ? actual === expected : actual.includes(expected);
+          if (!matches) {
+            throw new Error(
+              `Assertion failed: Title mismatch\n` +
+                `  Expected: "${expected}"\n` +
+                `  Actual: "${actual}"\n` +
+                `  Mode: ${exact ? 'exact' : 'contains'}`
+            );
+          }
+          result = { passed: true, actual };
+          break;
+        }
+
+        case 'assertCount': {
+          const selector = params.selector as string;
+          const expected = params.count as number;
+          const elements = await currentFrame.$$(selector);
+          const actual = elements.length;
+
+          if (actual !== expected) {
+            throw new Error(
+              `Assertion failed: Element count mismatch\n` +
+                `  Selector: ${selector}\n` +
+                `  Expected: ${expected}\n` +
+                `  Actual: ${actual}`
+            );
+          }
+          result = { passed: true, count: actual };
+          break;
+        }
+
         default:
           throw new Error(`Unknown action: ${action}`);
       }

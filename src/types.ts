@@ -66,7 +66,18 @@ export type CommandAction =
   | 'uploadFile'
   | 'switchToFrame'
   | 'switchToMain'
-  | 'getFrames';
+  | 'getFrames'
+  | 'assertVisible'
+  | 'assertHidden'
+  | 'assertText'
+  | 'assertValue'
+  | 'assertChecked'
+  | 'assertUnchecked'
+  | 'assertEnabled'
+  | 'assertDisabled'
+  | 'assertUrl'
+  | 'assertTitle'
+  | 'assertCount';
 
 export interface Command {
   id: string;

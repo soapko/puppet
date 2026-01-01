@@ -163,6 +163,67 @@ console.log(testid('submit')); // '[data-testid="submit"]'
 | `isRunning()`                 | Check if browser is running     |
 | `restart()`                   | Restart browser session         |
 
+### Assertions
+
+Built-in assertions verify page state and throw clear errors on failure:
+
+```javascript
+import { withBrowser } from 'puppet';
+
+await withBrowser(async browser => {
+  await browser.goto('https://example.com');
+
+  // Element visibility
+  await browser.assertVisible('login-form');
+  await browser.assertHidden('loading-spinner');
+
+  // Text content
+  await browser.assertText('welcome', 'Hello, User'); // exact match
+  await browser.assertText('welcome', 'Hello', false); // contains
+
+  // Form state
+  await browser.assertValue('email-input', 'test@example.com');
+  await browser.assertChecked('remember-me');
+  await browser.assertUnchecked('newsletter-opt-in');
+  await browser.assertEnabled('submit-btn');
+  await browser.assertDisabled('locked-field');
+
+  // Page state
+  await browser.assertUrl('/dashboard', false); // contains
+  await browser.assertUrl('https://example.com/dashboard'); // exact
+  await browser.assertTitle('Dashboard');
+
+  // Count elements
+  await browser.assertCount('list-item', 5);
+});
+```
+
+| Assertion Method                         | Description                             |
+| ---------------------------------------- | --------------------------------------- |
+| `assertVisible(selector)`                | Assert element is visible               |
+| `assertHidden(selector)`                 | Assert element is hidden or not present |
+| `assertText(selector, expected, exact?)` | Assert text content matches             |
+| `assertValue(selector, expected)`        | Assert input value matches              |
+| `assertChecked(selector)`                | Assert checkbox/radio is checked        |
+| `assertUnchecked(selector)`              | Assert checkbox/radio is not checked    |
+| `assertEnabled(selector)`                | Assert element is enabled               |
+| `assertDisabled(selector)`               | Assert element is disabled              |
+| `assertUrl(expected, exact?)`            | Assert current URL matches              |
+| `assertTitle(expected, exact?)`          | Assert page title matches               |
+| `assertCount(selector, count)`           | Assert number of matching elements      |
+
+**Error Messages:**
+
+Assertions throw descriptive errors on failure:
+
+```
+Assertion failed: Text mismatch
+  Selector: [data-testid="welcome"]
+  Expected: "Hello, User"
+  Actual: "Welcome, Guest"
+  Mode: exact
+```
+
 ---
 
 ## Script Mode
@@ -342,6 +403,17 @@ cat ~/.puppet/results.json
 | `switchToFrame`   | `selector`                                  | Switch context into an iframe               |
 | `switchToMain`    | -                                           | Switch back to main page context            |
 | `getFrames`       | -                                           | List all frames on the page                 |
+| `assertVisible`   | `selector`                                  | Assert element is visible                   |
+| `assertHidden`    | `selector`                                  | Assert element is hidden                    |
+| `assertText`      | `selector`, `expected`, `exact?`            | Assert text content matches                 |
+| `assertValue`     | `selector`, `expected`                      | Assert input value matches                  |
+| `assertChecked`   | `selector`                                  | Assert checkbox is checked                  |
+| `assertUnchecked` | `selector`                                  | Assert checkbox is unchecked                |
+| `assertEnabled`   | `selector`                                  | Assert element is enabled                   |
+| `assertDisabled`  | `selector`                                  | Assert element is disabled                  |
+| `assertUrl`       | `expected`, `exact?`                        | Assert current URL matches                  |
+| `assertTitle`     | `expected`, `exact?`                        | Assert page title matches                   |
+| `assertCount`     | `selector`, `count`                         | Assert number of matching elements          |
 | `init` / `noop`   | -                                           | No-op, useful for testing connection        |
 | `close`           | -                                           | Close the session                           |
 

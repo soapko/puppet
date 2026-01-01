@@ -283,6 +283,102 @@ export class Browser {
     return result.result as string;
   }
 
+  // ============ Assertions ============
+
+  /**
+   * Assert an element is visible
+   * @param selector - CSS selector or testid
+   */
+  async assertVisible(selector: string): Promise<void> {
+    await this.send('assertVisible', { selector: resolveSelector(selector) });
+  }
+
+  /**
+   * Assert an element is hidden or not present
+   * @param selector - CSS selector or testid
+   */
+  async assertHidden(selector: string): Promise<void> {
+    await this.send('assertHidden', { selector: resolveSelector(selector) });
+  }
+
+  /**
+   * Assert element text content matches
+   * @param selector - CSS selector or testid
+   * @param expected - Expected text
+   * @param exact - If true (default), text must match exactly. If false, text must contain expected.
+   */
+  async assertText(selector: string, expected: string, exact = true): Promise<void> {
+    await this.send('assertText', { selector: resolveSelector(selector), expected, exact });
+  }
+
+  /**
+   * Assert input value matches
+   * @param selector - CSS selector or testid
+   * @param expected - Expected value
+   */
+  async assertValue(selector: string, expected: string): Promise<void> {
+    await this.send('assertValue', { selector: resolveSelector(selector), expected });
+  }
+
+  /**
+   * Assert checkbox/radio is checked
+   * @param selector - CSS selector or testid
+   */
+  async assertChecked(selector: string): Promise<void> {
+    await this.send('assertChecked', { selector: resolveSelector(selector) });
+  }
+
+  /**
+   * Assert checkbox/radio is not checked
+   * @param selector - CSS selector or testid
+   */
+  async assertUnchecked(selector: string): Promise<void> {
+    await this.send('assertUnchecked', { selector: resolveSelector(selector) });
+  }
+
+  /**
+   * Assert element is enabled
+   * @param selector - CSS selector or testid
+   */
+  async assertEnabled(selector: string): Promise<void> {
+    await this.send('assertEnabled', { selector: resolveSelector(selector) });
+  }
+
+  /**
+   * Assert element is disabled
+   * @param selector - CSS selector or testid
+   */
+  async assertDisabled(selector: string): Promise<void> {
+    await this.send('assertDisabled', { selector: resolveSelector(selector) });
+  }
+
+  /**
+   * Assert current URL matches
+   * @param expected - Expected URL
+   * @param exact - If true (default), URL must match exactly. If false, URL must contain expected.
+   */
+  async assertUrl(expected: string, exact = true): Promise<void> {
+    await this.send('assertUrl', { expected, exact });
+  }
+
+  /**
+   * Assert page title matches
+   * @param expected - Expected title
+   * @param exact - If true (default), title must match exactly. If false, title must contain expected.
+   */
+  async assertTitle(expected: string, exact = true): Promise<void> {
+    await this.send('assertTitle', { expected, exact });
+  }
+
+  /**
+   * Assert number of matching elements
+   * @param selector - CSS selector or testid
+   * @param count - Expected count
+   */
+  async assertCount(selector: string, count: number): Promise<void> {
+    await this.send('assertCount', { selector: resolveSelector(selector), count });
+  }
+
   /**
    * Close the browser
    */

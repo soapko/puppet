@@ -108,3 +108,65 @@ await session.close(); // graceful shutdown
   error: 'Browser disconnected. Call restart() to recover.'
 }
 ```
+
+---
+
+## Built-in Assertions
+
+**Implemented:** 2026-01-01
+
+Assertion commands that verify page state and throw clear errors on failure.
+
+### Available Assertions
+
+| Command           | Params                           | Description                             |
+| ----------------- | -------------------------------- | --------------------------------------- |
+| `assertVisible`   | `selector`                       | Assert element is visible               |
+| `assertHidden`    | `selector`                       | Assert element is hidden or not present |
+| `assertText`      | `selector`, `expected`, `exact?` | Assert text content matches             |
+| `assertValue`     | `selector`, `expected`           | Assert input value matches              |
+| `assertChecked`   | `selector`                       | Assert checkbox/radio is checked        |
+| `assertUnchecked` | `selector`                       | Assert checkbox/radio is not checked    |
+| `assertEnabled`   | `selector`                       | Assert element is enabled               |
+| `assertDisabled`  | `selector`                       | Assert element is disabled              |
+| `assertUrl`       | `expected`, `exact?`             | Assert current URL matches              |
+| `assertTitle`     | `expected`, `exact?`             | Assert page title matches               |
+| `assertCount`     | `selector`, `count`              | Assert number of matching elements      |
+
+### Usage
+
+```typescript
+import { withBrowser } from 'puppet';
+
+await withBrowser(async browser => {
+  await browser.goto('https://example.com');
+
+  // Element assertions
+  await browser.assertVisible('login-form');
+  await browser.assertHidden('loading-spinner');
+  await browser.assertText('heading', 'Welcome');
+  await browser.assertText('heading', 'Welc', false); // contains mode
+
+  // Form assertions
+  await browser.assertValue('email-input', 'test@example.com');
+  await browser.assertChecked('remember-me');
+  await browser.assertDisabled('submit-btn');
+
+  // Page assertions
+  await browser.assertUrl('/dashboard', false); // contains
+  await browser.assertTitle('Dashboard');
+  await browser.assertCount('list-item', 5);
+});
+```
+
+### Error Messages
+
+Assertions throw descriptive errors on failure:
+
+```
+Assertion failed: Text mismatch
+  Selector: [data-testid="heading"]
+  Expected: "Hello"
+  Actual: "Welcome"
+  Mode: exact
+```
