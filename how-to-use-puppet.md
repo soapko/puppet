@@ -1,0 +1,522 @@
+# Puppet
+
+Browser automation library with human-like cursor movements. Built on Playwright and ghost-cursor-playwright.
+
+## Installation
+
+```bash
+npm install puppet
+```
+
+## Usage Modes
+
+Puppet supports two usage modes:
+
+1. **Script Mode** - Full programmatic control for automated testing
+2. **Interactive Mode** - Persistent browser session controlled via file-based commands
+
+---
+
+## Script Mode
+
+Use the direct API for synchronous, script-controlled automation. The browser lifecycle is fully managed by your script.
+
+### Quick Start
+
+```javascript
+import { getBrowser, createCursor } from 'puppet';
+
+const { browser, page } = await getBrowser({ headless: false });
+const cursor = createCursor(page);
+
+await page.goto('https://example.com');
+await cursor.click('button.submit');
+await cursor.type('input[name="email"]', 'test@example.com');
+
+await browser.close();
+```
+
+### Browser API
+
+```javascript
+import { getBrowser, launchBrowser, createContext, createPage } from 'puppet';
+
+// Convenience function - returns ready-to-use browser, context, and page
+const { browser, context, page } = await getBrowser({
+  headless: false, // Show browser window (default: false)
+  viewport: { width: 1920, height: 1080 },
+  userAgent: 'Custom UA',
+  slowMo: 50, // Slow down operations for debugging
+});
+
+// Or use lower-level functions for more control
+const browser = await launchBrowser({ headless: false });
+const context = await createContext(browser, { viewport: { width: 1280, height: 720 } });
+const page = await createPage(context);
+```
+
+### Cursor API
+
+The cursor simulates human-like mouse movements using Bezier curves, with random hesitation and variable timing.
+
+```javascript
+import { createCursor } from 'puppet';
+
+const cursor = createCursor(page, {
+  moveSpeed: 1, // Speed multiplier (default: 1)
+  hesitation: true, // Add random delays before actions (default: true)
+  overshootSpread: 10, // Cursor overshoot for realism (default: 10)
+});
+
+// Click with human-like cursor movement
+await cursor.click('button.submit');
+
+// Double-click
+await cursor.doubleClick('div.item');
+
+// Type with variable keystroke delays
+await cursor.type('input[name="search"]', 'hello world');
+
+// Move cursor without clicking
+await cursor.moveTo('nav.menu');
+await cursor.moveToCoords(500, 300);
+
+// Scroll
+await cursor.scroll('down', 500); // Scroll down 500px in chunks
+await cursor.scroll('up', 200); // Scroll up 200px
+await cursor.scrollTo('footer'); // Scroll element into view
+
+// Human-like pauses
+await cursor.wait(1000, 2000); // Random delay between 1-2 seconds
+
+// Idle behavior (random micro-movements)
+await cursor.idle(3000); // 3 seconds of subtle mouse movement
+```
+
+---
+
+## Interactive Mode
+
+Keep a browser session running and send commands on-the-fly. Ideal for REPL-style interaction, external tool integration, or Claude-driven automation.
+
+### Starting a Session
+
+From the puppet directory:
+
+```bash
+cd /path/to/puppet
+node start-session.mjs
+```
+
+Or programmatically:
+
+```javascript
+import { startSession } from 'puppet';
+
+const session = await startSession({
+  headless: false,
+  commandFile: '~/.puppet/commands.json', // Default
+  resultFile: '~/.puppet/results.json', // Default
+});
+
+// Session is now running and watching for commands
+console.log('Session running:', session.isRunning());
+console.log('Current URL:', session.getUrl());
+
+// Close when done
+await session.close();
+```
+
+### Sending Commands
+
+Use the `sendCommand` helper from another process:
+
+```javascript
+import { sendCommand } from 'puppet';
+
+// Navigate
+await sendCommand({ action: 'goto', params: { url: 'https://example.com' } });
+
+// Click
+await sendCommand({ action: 'click', params: { selector: 'button.login' } });
+
+// Type
+await sendCommand({ action: 'type', params: { selector: 'input', text: 'hello' } });
+
+// Get result with timeout
+const result = await sendCommand(
+  { action: 'screenshot', params: { fullPage: true } },
+  { timeout: 10000 }
+);
+console.log(result);
+// { id: 'cmd-123', success: true, result: '/path/to/screenshot.png' }
+```
+
+Or write directly to the command file:
+
+```bash
+echo '{"id":"1","action":"goto","params":{"url":"https://example.com"}}' > ~/.puppet/commands.json
+cat ~/.puppet/results.json
+```
+
+### Available Commands
+
+| Action            | Params                              | Description                            |
+| ----------------- | ----------------------------------- | -------------------------------------- |
+| `goto`            | `url`                               | Navigate to URL                        |
+| `click`           | `selector`                          | Click element with human-like cursor   |
+| `type`            | `selector`, `text`                  | Type text into input field             |
+| `clear`           | `selector`                          | Clear input field                      |
+| `scroll`          | `direction` (`up`/`down`), `amount` | Scroll page                            |
+| `screenshot`      | `fullPage` (boolean)                | Capture screenshot, returns path       |
+| `evaluate`        | `script`                            | Execute JavaScript, returns result     |
+| `waitFor`         | `selector`, `timeout`               | Wait for element to appear             |
+| `getUrl`          | -                                   | Get current page URL                   |
+| `getTitle`        | -                                   | Get page title                         |
+| `setDialogAction` | `action` (`accept`/`dismiss`)       | Set behavior for alert/confirm dialogs |
+| `getLastDialog`   | -                                   | Get message from last dialog           |
+| `init` / `noop`   | -                                   | No-op, useful for testing connection   |
+| `close`           | -                                   | Close the session                      |
+
+### Command/Result Format
+
+**Command:**
+
+```json
+{
+  "id": "unique-id",
+  "action": "click",
+  "params": {
+    "selector": "button.submit"
+  }
+}
+```
+
+**Result:**
+
+```json
+{
+  "id": "unique-id",
+  "success": true,
+  "result": null
+}
+```
+
+**Error result:**
+
+```json
+{
+  "id": "unique-id",
+  "success": false,
+  "error": "Element not found: button.submit"
+}
+```
+
+### Debug Mode
+
+Enable verbose logging:
+
+```bash
+PUPPET_DEBUG=1 node start-session.mjs
+```
+
+---
+
+## Examples
+
+### Automated Test Script
+
+```javascript
+import { getBrowser, createCursor } from 'puppet';
+
+async function testLogin() {
+  const { browser, page } = await getBrowser({ headless: false });
+  const cursor = createCursor(page);
+
+  try {
+    await page.goto('https://myapp.com/login');
+    await cursor.wait(500, 1000);
+
+    await cursor.type('#username', 'testuser');
+    await cursor.type('#password', 'testpass');
+    await cursor.click('button[type="submit"]');
+
+    await page.waitForURL('**/dashboard/**');
+    console.log('Login successful!');
+
+    await page.screenshot({ path: 'dashboard.png' });
+  } finally {
+    await browser.close();
+  }
+}
+
+testLogin();
+```
+
+### Interactive Session with External Control
+
+**Terminal 1 - Start session:**
+
+```bash
+node start-session.mjs
+```
+
+**Terminal 2 - Send commands:**
+
+```javascript
+import { sendCommand } from 'puppet';
+
+await sendCommand({ action: 'goto', params: { url: 'https://news.ycombinator.com' } });
+await sendCommand({ action: 'screenshot', params: { fullPage: false } });
+
+const title = await sendCommand({ action: 'getTitle' });
+console.log('Page title:', title.result);
+
+await sendCommand({ action: 'click', params: { selector: '.morelink' } });
+```
+
+---
+
+## API Reference
+
+### Browser Functions
+
+| Function                           | Description                                            |
+| ---------------------------------- | ------------------------------------------------------ |
+| `getBrowser(options?)`             | Launch browser and return `{ browser, context, page }` |
+| `launchBrowser(options?)`          | Launch raw Chromium browser                            |
+| `createContext(browser, options?)` | Create browser context with viewport/UA                |
+| `createPage(context)`              | Create page from context                               |
+
+### Cursor Methods
+
+| Method                       | Description                                 |
+| ---------------------------- | ------------------------------------------- |
+| `click(selector)`            | Move to element and click                   |
+| `doubleClick(selector)`      | Move to element and double-click            |
+| `type(selector, text)`       | Click element and type with variable delays |
+| `moveTo(selector)`           | Move cursor to element                      |
+| `moveToCoords(x, y)`         | Move cursor to coordinates                  |
+| `scroll(direction, amount?)` | Scroll in chunks                            |
+| `scrollTo(selector)`         | Scroll element into view                    |
+| `wait(min?, max?)`           | Random delay                                |
+| `idle(duration?)`            | Random micro-movements                      |
+
+### Session Functions
+
+| Function                         | Description                     |
+| -------------------------------- | ------------------------------- |
+| `startSession(options?)`         | Start interactive session       |
+| `sendCommand(command, options?)` | Send command to running session |
+
+---
+
+## Configuration
+
+### BrowserOptions
+
+```typescript
+interface BrowserOptions {
+  headless?: boolean; // Default: false
+  viewport?: { width: number; height: number };
+  userAgent?: string;
+  slowMo?: number;
+}
+```
+
+### CursorOptions
+
+```typescript
+interface CursorOptions {
+  moveSpeed?: number; // Default: 1
+  hesitation?: boolean; // Default: true
+  overshootSpread?: number; // Default: 10
+}
+```
+
+### SessionOptions
+
+```typescript
+interface SessionOptions {
+  commandFile?: string; // Default: ~/.puppet/commands.json
+  resultFile?: string; // Default: ~/.puppet/results.json
+  headless?: boolean; // Default: false
+  viewport?: { width: number; height: number };
+}
+```
+
+---
+
+## Troubleshooting
+
+### Browser Closed Unexpectedly During Session
+
+If the browser window is closed manually or crashes while a session is running:
+
+1. The session process will detect the closure and exit
+2. Restart the session (from the puppet directory):
+   ```bash
+   cd /path/to/puppet
+   node start-session.mjs
+   ```
+3. Any pending commands in `~/.puppet/commands.json` will be processed on restart
+
+To prevent accidental closure, avoid interacting with the browser window directly during automated sessions.
+
+### Session Server Not Responding
+
+If commands aren't being processed:
+
+1. **Check if session is running** (from anywhere):
+
+   ```bash
+   ps aux | grep start-session
+   ```
+
+2. **Restart the session:**
+
+   ```bash
+   # Kill existing session if hung (from anywhere)
+   pkill -f start-session.mjs
+
+   # Start fresh (from puppet directory)
+   cd /path/to/puppet
+   node start-session.mjs
+   ```
+
+3. **Clear stale command/result files:**
+   ```bash
+   rm ~/.puppet/commands.json ~/.puppet/results.json
+   cd /path/to/puppet
+   node start-session.mjs
+   ```
+
+### Command Timeouts
+
+Commands may timeout if:
+
+- The page is slow to load
+- An element isn't present on the page
+- The selector is incorrect
+
+**Solutions:**
+
+1. **Increase timeout when sending commands:**
+
+   ```javascript
+   await sendCommand(
+     { action: 'click', params: { selector: '.slow-element' } },
+     { timeout: 30000 } // 30 seconds
+   );
+   ```
+
+2. **Wait for elements before clicking:**
+
+   ```javascript
+   await sendCommand({ action: 'waitFor', params: { selector: '.button', timeout: 10000 } });
+   await sendCommand({ action: 'click', params: { selector: '.button' } });
+   ```
+
+3. **Check for navigation completion:**
+   ```javascript
+   await sendCommand({ action: 'goto', params: { url: 'https://example.com' } });
+   await sendCommand({ action: 'waitFor', params: { selector: 'body', timeout: 5000 } });
+   ```
+
+### Race Conditions
+
+Commands are processed sequentially, but if you're sending commands from multiple processes or too quickly:
+
+1. **Always wait for command results before sending the next:**
+
+   ```javascript
+   // Good - sequential
+   const result1 = await sendCommand({ action: 'goto', params: { url: '...' } });
+   const result2 = await sendCommand({ action: 'click', params: { selector: '...' } });
+
+   // Bad - parallel (may cause issues)
+   await Promise.all([
+     sendCommand({ action: 'goto', params: { url: '...' } }),
+     sendCommand({ action: 'click', params: { selector: '...' } }),
+   ]);
+   ```
+
+2. **Add explicit waits between rapid interactions:**
+
+   ```javascript
+   await sendCommand({ action: 'click', params: { selector: 'button.submit' } });
+   await sendCommand({
+     action: 'waitFor',
+     params: { selector: '.success-message', timeout: 5000 },
+   });
+   ```
+
+3. **Use unique command IDs to track responses:**
+   ```javascript
+   const id = `cmd-${Date.now()}`;
+   await sendCommand({ id, action: 'screenshot', params: {} });
+   ```
+
+### Element Not Found Errors
+
+If you get "Element not found" errors:
+
+1. **Verify the selector in browser DevTools:**
+   - Right-click element > Inspect
+   - Test selector in Console: `document.querySelector('your-selector')`
+
+2. **Wait for dynamic content:**
+
+   ```javascript
+   await sendCommand({ action: 'waitFor', params: { selector: '.dynamic-content' } });
+   await sendCommand({ action: 'click', params: { selector: '.dynamic-content button' } });
+   ```
+
+3. **Check if element is in an iframe:**
+   - The session operates on the main frame only
+   - Use `evaluate` to access iframe content if needed
+
+### Debug Mode
+
+Enable verbose logging to diagnose issues:
+
+```bash
+PUPPET_DEBUG=1 node start-session.mjs
+```
+
+This shows:
+
+- Command file watch events
+- Each command received and its parameters
+- Command execution results
+- Timing information
+
+### Stale Session State
+
+If the session seems stuck or behaving unexpectedly:
+
+1. **Reset the session completely:**
+
+   ```bash
+   # Stop any running sessions (from anywhere)
+   pkill -f start-session.mjs
+
+   # Clear command/result files (from anywhere)
+   rm -rf ~/.puppet/
+
+   # Start fresh (from puppet directory)
+   cd /path/to/puppet
+   node start-session.mjs
+   ```
+
+2. **Navigate to a known state:**
+   ```javascript
+   await sendCommand({ action: 'goto', params: { url: 'about:blank' } });
+   await sendCommand({ action: 'goto', params: { url: 'https://your-start-page.com' } });
+   ```
+
+---
+
+## License
+
+MIT
