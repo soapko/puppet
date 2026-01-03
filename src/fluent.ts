@@ -190,7 +190,9 @@ export class Browser {
   async waitFor(selector: string, timeout?: number): Promise<void> {
     const params: Record<string, unknown> = { selector: resolveSelector(selector) };
     if (timeout !== undefined) params.timeout = timeout;
-    await this.send('waitFor', params);
+    // Forward timeout to sendCommand with buffer for IPC overhead
+    const sendTimeout = timeout !== undefined ? timeout + 1000 : undefined;
+    await this.send('waitFor', params, { timeout: sendTimeout });
   }
 
   /**
@@ -200,7 +202,9 @@ export class Browser {
   async waitForLoaded(timeout?: number): Promise<void> {
     const params: Record<string, unknown> = {};
     if (timeout !== undefined) params.timeout = timeout;
-    await this.send('waitForLoaded', params);
+    // Forward timeout to sendCommand with buffer for IPC overhead
+    const sendTimeout = timeout !== undefined ? timeout + 1000 : undefined;
+    await this.send('waitForLoaded', params, { timeout: sendTimeout });
   }
 
   /**
@@ -407,9 +411,10 @@ export class Browser {
    */
   private async send(
     action: CommandAction,
-    params: Record<string, unknown>
+    params: Record<string, unknown>,
+    options?: { timeout?: number }
   ): Promise<CommandResult> {
-    const result = await sendCommand({ action, params });
+    const result = await sendCommand({ action, params }, options);
     if (!result.success) {
       throw new Error(result.error ?? `Command ${action} failed`);
     }
