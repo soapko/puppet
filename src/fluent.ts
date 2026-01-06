@@ -384,6 +384,15 @@ export class Browser {
   }
 
   /**
+   * Get video path (only available after close when video recording is enabled)
+   * @returns Video path info or null if not recording
+   */
+  async getVideoPath(): Promise<{ enabled: boolean; path: string | null }> {
+    const result = await this.send('getVideoPath', {});
+    return result.result as { enabled: boolean; path: string | null };
+  }
+
+  /**
    * Close the browser
    */
   async close(): Promise<void> {

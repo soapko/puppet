@@ -37,12 +37,21 @@ export { testid, resolveSelector } from './selectors.js';
 export { withRetry, executeWithOptionalRetry } from './retry.js';
 export { getElementErrorContext, formatElementError, isElementNotFoundError } from './errors.js';
 
+// Visual cursor for video recording
+export {
+  injectVisualCursor,
+  setupVisualCursor,
+  moveVisualCursor,
+  triggerClickEffect,
+} from './visual-cursor.js';
+
 // Types
 export type {
   BrowserOptions,
   CursorOptions,
   BrowserInstance,
   SessionOptions,
+  VideoOptions,
   Command,
   CommandAction,
   CommandResult,

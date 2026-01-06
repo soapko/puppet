@@ -88,11 +88,12 @@ export async function startSession(options: SessionOptions = {}): Promise<Sessio
 
   // Launch browser
   log.info('Launching browser...');
-  let { browser, context, page } = await getBrowser({
+  let { browser, context, page, videoEnabled } = await getBrowser({
     headless: options.headless ?? false,
     viewport: options.viewport,
+    video: options.video,
   });
-  log.info('Browser launched');
+  log.info('Browser launched', videoEnabled ? '(video recording enabled)' : '');
 
   let cursor = createCursor(page);
   let running = true;
@@ -601,6 +602,30 @@ export async function startSession(options: SessionOptions = {}): Promise<Sessio
           break;
         }
 
+        case 'getVideoPath': {
+          if (!videoEnabled) {
+            result = { enabled: false, path: null };
+          } else {
+            // Video path is only available; video file is saved when context closes
+            const video = page.video();
+            if (video) {
+              try {
+                const videoPath = await video.path();
+                result = { enabled: true, path: videoPath };
+              } catch {
+                result = {
+                  enabled: true,
+                  path: null,
+                  note: 'Video not yet saved (call close first)',
+                };
+              }
+            } else {
+              result = { enabled: true, path: null };
+            }
+          }
+          break;
+        }
+
         default:
           throw new Error(`Unknown action: ${action}`);
       }
@@ -687,6 +712,9 @@ export async function startSession(options: SessionOptions = {}): Promise<Sessio
     }
   }
 
+  // Track last video path for retrieval after close
+  let lastVideoPath: string | null = null;
+
   // Cleanup function
   async function cleanup() {
     log.info('Cleaning up session...');
@@ -698,6 +726,20 @@ export async function startSession(options: SessionOptions = {}): Promise<Sessio
     // Only try to close browser if it's still connected
     if (browserConnected) {
       try {
+        // If video recording was enabled, save the video path before closing
+        if (videoEnabled) {
+          const video = page.video();
+          if (video) {
+            try {
+              // Close context first to finalize video
+              await context.close();
+              lastVideoPath = await video.path();
+              log.info('Video saved:', lastVideoPath);
+            } catch (err) {
+              log.debug('Could not save video path:', err);
+            }
+          }
+        }
         await browser.close();
         log.info('Browser closed');
       } catch (err) {
@@ -777,10 +819,12 @@ export async function startSession(options: SessionOptions = {}): Promise<Sessio
       const newInstance = await getBrowser({
         headless: options.headless ?? false,
         viewport: options.viewport,
+        video: options.video,
       });
       browser = newInstance.browser;
       context = newInstance.context;
       page = newInstance.page;
+      videoEnabled = newInstance.videoEnabled;
       cursor = createCursor(page);
 
       // Reset state

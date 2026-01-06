@@ -10,8 +10,9 @@ import * as path from 'path';
 import { test as baseTest, expect as baseExpect, afterAll, describe as baseDescribe } from 'vitest';
 
 import { puppet, Browser } from '../fluent.js';
+import type { VideoOptions } from '../types.js';
 
-import { getConfig } from './config.js';
+import { getConfig, type VideoConfig } from './config.js';
 import { puppetMatchers } from './matchers.js';
 
 // Extend expect with custom matchers
@@ -29,18 +30,45 @@ interface PuppetFixtures {
 let sharedBrowser: Browser | null = null;
 
 /**
+ * Parse video config into VideoOptions
+ */
+function parseVideoConfig(
+  video: boolean | VideoConfig | undefined,
+  videoDir: string
+): VideoOptions | undefined {
+  if (!video) return undefined;
+
+  if (video === true) {
+    return { dir: videoDir };
+  }
+
+  return {
+    dir: video.dir ?? videoDir,
+    size: video.size,
+  };
+}
+
+/**
  * Create the test function with page fixture
  */
 export const test = baseTest.extend<PuppetFixtures>({
   page: async ({ task }, use) => {
     const config = getConfig();
 
+    // Parse video options
+    const videoOptions = parseVideoConfig(config.video, config.videoDir);
+
     // Reuse browser instance if available
     if (!sharedBrowser || !sharedBrowser.isRunning()) {
       sharedBrowser = await puppet({
         headless: config.headless,
         viewport: config.viewport,
+        video: videoOptions,
       });
+
+      if (videoOptions) {
+        console.log(`Video recording enabled, saving to: ${videoOptions.dir}`);
+      }
     }
 
     const browser = sharedBrowser;
@@ -76,6 +104,16 @@ export const test = baseTest.extend<PuppetFixtures>({
 export function setupPuppet(): void {
   afterAll(async () => {
     if (sharedBrowser) {
+      // Check if video was recorded
+      try {
+        const videoInfo = await sharedBrowser.getVideoPath();
+        if (videoInfo.enabled && videoInfo.path) {
+          console.log(`Video will be saved after close`);
+        }
+      } catch {
+        // Ignore errors getting video path
+      }
+
       await sharedBrowser.close().catch(() => {});
       sharedBrowser = null;
     }

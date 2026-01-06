@@ -2,6 +2,13 @@
  * Test runner configuration
  */
 
+export interface VideoConfig {
+  /** Directory to save videos (default: './test-results/videos') */
+  dir?: string;
+  /** Video size - defaults to viewport size */
+  size?: { width: number; height: number };
+}
+
 export interface PuppetTestConfig {
   /** Base URL for relative navigation (e.g., 'http://localhost:3000') */
   baseURL?: string;
@@ -23,6 +30,12 @@ export interface PuppetTestConfig {
 
   /** Directory for failure screenshots (default: './test-results') */
   screenshotDir?: string;
+
+  /** Enable video recording with visual cursor (default: false) */
+  video?: boolean | VideoConfig;
+
+  /** Directory for videos (default: './test-results/videos') */
+  videoDir?: string;
 }
 
 const defaultConfig: Required<PuppetTestConfig> = {
@@ -33,6 +46,8 @@ const defaultConfig: Required<PuppetTestConfig> = {
   timeout: 30000,
   screenshotOnFailure: true,
   screenshotDir: './test-results',
+  video: false,
+  videoDir: './test-results/videos',
 };
 
 let currentConfig: Required<PuppetTestConfig> = { ...defaultConfig };

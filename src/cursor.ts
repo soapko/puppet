@@ -15,6 +15,8 @@ export class Cursor {
   private page: Page;
   private options: Required<CursorOptions>;
   private initPromise: Promise<void> | null = null;
+  private lastX: number = 0;
+  private lastY: number = 0;
 
   constructor(page: Page, options: CursorOptions = {}) {
     this.page = page;
@@ -23,6 +25,54 @@ export class Cursor {
       hesitation: options.hesitation ?? true,
       overshootSpread: options.overshootSpread ?? 10,
     };
+  }
+
+  /**
+   * Update the visual cursor position in the page (for video recording)
+   */
+  private async updateVisualCursor(x: number, y: number): Promise<void> {
+    this.lastX = x;
+    this.lastY = y;
+    try {
+      await this.page.evaluate(
+        ([px, py]) => {
+          if (
+            typeof (window as unknown as { __puppetMoveCursor__?: (x: number, y: number) => void })
+              .__puppetMoveCursor__ === 'function'
+          ) {
+            (
+              window as unknown as { __puppetMoveCursor__: (x: number, y: number) => void }
+            ).__puppetMoveCursor__(px, py);
+          }
+        },
+        [x, y]
+      );
+    } catch {
+      // Ignore errors (page might be navigating)
+    }
+  }
+
+  /**
+   * Trigger visual click effect (for video recording)
+   */
+  private async triggerVisualClick(x: number, y: number): Promise<void> {
+    try {
+      await this.page.evaluate(
+        ([px, py]) => {
+          if (
+            typeof (window as unknown as { __puppetClickEffect__?: (x: number, y: number) => void })
+              .__puppetClickEffect__ === 'function'
+          ) {
+            (
+              window as unknown as { __puppetClickEffect__: (x: number, y: number) => void }
+            ).__puppetClickEffect__(px, py);
+          }
+        },
+        [x, y]
+      );
+    } catch {
+      // Ignore errors
+    }
   }
 
   /**
@@ -35,6 +85,7 @@ export class Cursor {
       this.initPromise = (async () => {
         this.ghostCursor = await createGhostCursor(this.page, {
           overshootSpread: this.options.overshootSpread,
+          debug: false, // Disable ghost-cursor's visual indicator
         });
       })();
     }
@@ -51,9 +102,24 @@ export class Cursor {
     if (this.options.hesitation) {
       await this.randomDelay(20, 60);
     }
-    await cursor.actions.move(selector, {
-      paddingPercentage: 10, // Don't always hit center
-    });
+
+    // Get target position first
+    const box = await this.page.locator(selector).boundingBox();
+    if (!box) {
+      await cursor.actions.move(selector, { paddingPercentage: 10 });
+      return;
+    }
+
+    const targetX = box.x + box.width / 2;
+    const targetY = box.y + box.height / 2;
+
+    // Animate visual cursor to target while ghost-cursor moves
+    const movePromise = cursor.actions.move(selector, { paddingPercentage: 10 });
+    await this.animateVisualCursor(targetX, targetY, 200);
+    await movePromise;
+
+    // Ensure final position is exact
+    await this.updateVisualCursor(targetX, targetY);
   }
 
   /**
@@ -64,7 +130,38 @@ export class Cursor {
     if (this.options.hesitation) {
       await this.randomDelay(20, 60);
     }
-    await cursor.actions.move({ x, y });
+
+    // Animate visual cursor to target while ghost-cursor moves
+    const movePromise = cursor.actions.move({ x, y });
+    await this.animateVisualCursor(x, y, 200);
+    await movePromise;
+
+    // Ensure final position is exact
+    await this.updateVisualCursor(x, y);
+  }
+
+  /**
+   * Animate visual cursor to target position over duration
+   */
+  private async animateVisualCursor(
+    targetX: number,
+    targetY: number,
+    durationMs: number
+  ): Promise<void> {
+    const steps = 10;
+    const stepDuration = durationMs / steps;
+    const startX = this.lastX;
+    const startY = this.lastY;
+
+    for (let i = 1; i <= steps; i++) {
+      const progress = i / steps;
+      // Ease-out curve for natural deceleration
+      const eased = 1 - Math.pow(1 - progress, 2);
+      const currentX = startX + (targetX - startX) * eased;
+      const currentY = startY + (targetY - startY) * eased;
+      await this.updateVisualCursor(currentX, currentY);
+      await new Promise(r => setTimeout(r, stepDuration));
+    }
   }
 
   /**
@@ -119,6 +216,10 @@ export class Cursor {
     if (this.options.hesitation) {
       await this.randomDelay(20, 50);
     }
+
+    // Trigger visual click effect
+    await this.triggerVisualClick(this.lastX, this.lastY);
+
     await this.page.click(selector);
   }
 

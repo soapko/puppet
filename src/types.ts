@@ -1,5 +1,12 @@
 import type { Browser, BrowserContext, Page } from 'playwright';
 
+export interface VideoOptions {
+  /** Directory to save videos (default: './videos') */
+  dir?: string;
+  /** Video size - defaults to viewport size */
+  size?: { width: number; height: number };
+}
+
 export interface BrowserOptions {
   /** Run browser in headless mode. Default: false (shows browser window) */
   headless?: boolean;
@@ -12,6 +19,8 @@ export interface BrowserOptions {
   userAgent?: string;
   /** Slow down operations by specified milliseconds (useful for debugging) */
   slowMo?: number;
+  /** Enable video recording with visual cursor */
+  video?: boolean | VideoOptions;
 }
 
 export interface CursorOptions {
@@ -27,6 +36,8 @@ export interface BrowserInstance {
   browser: Browser;
   context: BrowserContext;
   page: Page;
+  /** Whether video recording is enabled */
+  videoEnabled: boolean;
 }
 
 export interface SessionOptions {
@@ -43,6 +54,8 @@ export interface SessionOptions {
     width: number;
     height: number;
   };
+  /** Enable video recording with visual cursor */
+  video?: boolean | VideoOptions;
 }
 
 export type CommandAction =
@@ -77,7 +90,8 @@ export type CommandAction =
   | 'assertDisabled'
   | 'assertUrl'
   | 'assertTitle'
-  | 'assertCount';
+  | 'assertCount'
+  | 'getVideoPath';
 
 export interface Command {
   id: string;
