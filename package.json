@@ -22,7 +22,7 @@
     "build": "tsc",
     "clean": "rm -rf dist",
     "prepublishOnly": "npm run build",
-    "prepare": "husky",
+    "prepare": "husky && npm run build",
     "lint": "eslint src",
     "lint:fix": "eslint src --fix",
     "format": "prettier --write \"src/**/*.{ts,tsx,json,css,md}\"",
