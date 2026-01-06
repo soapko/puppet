@@ -9,7 +9,7 @@ export interface PuppetTestConfig {
   /** Run browser in headless mode (default: true) */
   headless?: boolean;
 
-  /** Browser viewport size (default: 1920x1080) */
+  /** Browser viewport size (default: 1440x900) */
   viewport?: { width: number; height: number };
 
   /** Slow down actions by this many milliseconds (useful for debugging) */
@@ -28,7 +28,7 @@ export interface PuppetTestConfig {
 const defaultConfig: Required<PuppetTestConfig> = {
   baseURL: '',
   headless: true,
-  viewport: { width: 1920, height: 1080 },
+  viewport: { width: 1440, height: 900 },
   slowMo: 0,
   timeout: 30000,
   screenshotOnFailure: true,

@@ -904,7 +904,7 @@ import { getBrowser, launchBrowser, createContext, createPage } from 'puppet';
 // Convenience function - returns ready-to-use browser, context, and page
 const { browser, context, page } = await getBrowser({
   headless: false, // Show browser window (default: false)
-  viewport: { width: 1920, height: 1080 },
+  viewport: { width: 1440, height: 900 },
   userAgent: 'Custom UA',
   slowMo: 50, // Slow down operations for debugging
 });
@@ -1332,7 +1332,7 @@ interface SessionOptions {
 
 ### Viewport Configuration
 
-The viewport option controls the browser window size. If not specified, defaults to `1920x1080`.
+The viewport option controls the browser window size. If not specified, defaults to `1440x900`.
 
 **Setting viewport with different APIs:**
 
@@ -1363,7 +1363,7 @@ const session = await createSession({
 import { getBrowser, createContext, launchBrowser } from 'puppet';
 
 const { browser, page } = await getBrowser({
-  viewport: { width: 1920, height: 1080 },
+  viewport: { width: 1440, height: 900 },
 });
 
 // Or with lower-level control

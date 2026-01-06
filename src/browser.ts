@@ -4,7 +4,7 @@ import type { Browser, BrowserContext, Page } from 'playwright';
 import type { BrowserOptions, BrowserInstance } from './types.js';
 
 /** Default viewport mimicking common desktop resolution */
-const DEFAULT_VIEWPORT = { width: 1920, height: 1080 };
+const DEFAULT_VIEWPORT = { width: 1440, height: 900 };
 
 /** Default user agent (Chrome on macOS) */
 const DEFAULT_USER_AGENT =
