@@ -59,7 +59,12 @@ export async function createContext(
   browser: Browser,
   options: BrowserOptions = {}
 ): Promise<BrowserContext> {
-  const { viewport = DEFAULT_VIEWPORT, userAgent = DEFAULT_USER_AGENT, video } = options;
+  const {
+    viewport = DEFAULT_VIEWPORT,
+    userAgent = DEFAULT_USER_AGENT,
+    video,
+    showCursor,
+  } = options;
 
   const videoOptions = parseVideoOptions(video, viewport);
 
@@ -80,8 +85,8 @@ export async function createContext(
     }),
   });
 
-  // Set up visual cursor if video recording is enabled
-  if (videoOptions) {
+  // Set up visual cursor if video recording is enabled or showCursor is true
+  if (videoOptions || showCursor) {
     await setupVisualCursor(context);
   }
 

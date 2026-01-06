@@ -64,6 +64,7 @@ export const test = baseTest.extend<PuppetFixtures>({
         headless: config.headless,
         viewport: config.viewport,
         video: videoOptions,
+        showCursor: config.showCursor,
       });
 
       if (videoOptions) {

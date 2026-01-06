@@ -1305,6 +1305,8 @@ interface BrowserOptions {
   viewport?: { width: number; height: number };
   userAgent?: string;
   slowMo?: number;
+  video?: boolean | { dir?: string; size?: { width: number; height: number } };
+  showCursor?: boolean; // Show visual cursor overlay (auto-enabled with video)
 }
 ```
 
@@ -1327,6 +1329,8 @@ interface SessionOptions {
   statusFile?: string; // Default: ~/.puppet/status.json
   headless?: boolean; // Default: false
   viewport?: { width: number; height: number };
+  video?: boolean | { dir?: string; size?: { width: number; height: number } };
+  showCursor?: boolean; // Show visual cursor overlay (auto-enabled with video)
 }
 ```
 
@@ -1423,6 +1427,64 @@ const { browser, page } = await getBrowser({
 ```
 
 **Limitation:** Puppet currently does not support touch emulation (`hasTouch`) or mobile browser mode (`isMobile`). The viewport and user agent changes are sufficient for most responsive design testing, but touch-specific interactions are not emulated.
+
+### Video Recording and Visual Cursor
+
+Puppet can record videos of browser sessions for debugging and documentation. When video recording is enabled, a visual cursor overlay is automatically added to make mouse movements visible in the recording.
+
+**Enable video recording:**
+
+```typescript
+// Simple - saves to ./videos/
+const browser = await puppet({ video: true });
+
+// Custom directory
+const browser = await puppet({ video: { dir: './test-videos' } });
+
+// With custom video size
+const browser = await puppet({
+  video: { dir: './videos', size: { width: 1280, height: 720 } },
+});
+```
+
+**Show cursor without recording:**
+
+For debugging in headed mode, you can show the visual cursor without recording:
+
+```typescript
+// Cursor visible but no video recorded
+const browser = await puppet({ showCursor: true });
+```
+
+**Get video path after recording:**
+
+```typescript
+import { withBrowser } from 'puppet';
+
+await withBrowser(
+  async browser => {
+    await browser.goto('https://example.com');
+    await browser.click('submit-btn');
+
+    // Video path is available after actions
+    const videoInfo = await browser.getVideoPath();
+    console.log('Video:', videoInfo.path);
+  },
+  { video: { dir: './recordings' } }
+);
+```
+
+**Test runner configuration:**
+
+```typescript
+// puppet.config.ts
+import { defineConfig } from 'puppet/test';
+
+export default defineConfig({
+  video: true, // or { dir: './test-videos' }
+  showCursor: true, // Show cursor even without video (useful for headed debugging)
+});
+```
 
 ---
 

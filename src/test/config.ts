@@ -31,11 +31,14 @@ export interface PuppetTestConfig {
   /** Directory for failure screenshots (default: './test-results') */
   screenshotDir?: string;
 
-  /** Enable video recording with visual cursor (default: false) */
+  /** Enable video recording (automatically enables visual cursor) (default: false) */
   video?: boolean | VideoConfig;
 
   /** Directory for videos (default: './test-results/videos') */
   videoDir?: string;
+
+  /** Show visual cursor overlay. Automatically enabled when video is true. Useful for debugging in headed mode. (default: false) */
+  showCursor?: boolean;
 }
 
 const defaultConfig: Required<PuppetTestConfig> = {
@@ -48,6 +51,7 @@ const defaultConfig: Required<PuppetTestConfig> = {
   screenshotDir: './test-results',
   video: false,
   videoDir: './test-results/videos',
+  showCursor: false,
 };
 
 let currentConfig: Required<PuppetTestConfig> = { ...defaultConfig };

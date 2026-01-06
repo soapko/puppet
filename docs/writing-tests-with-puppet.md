@@ -471,6 +471,33 @@ export default defineConfig({
   timeout: 30000,
   screenshotOnFailure: true,
   screenshotDir: './test-results',
+  video: false, // Enable to record test videos
+  showCursor: false, // Show visual cursor (auto-enabled with video)
+});
+```
+
+**Video recording:**
+
+Record videos of test runs for debugging flaky tests:
+
+```typescript
+export default defineConfig({
+  baseURL: 'http://localhost:3000',
+  headless: false, // See the browser during recording
+  video: true, // Videos saved to ./test-results/videos/
+  // showCursor is automatically enabled when video is true
+});
+```
+
+**Show cursor without recording:**
+
+For headed debugging without video files:
+
+```typescript
+export default defineConfig({
+  baseURL: 'http://localhost:3000',
+  headless: false,
+  showCursor: true, // Visual cursor without video recording
 });
 ```
 

@@ -19,8 +19,10 @@ export interface BrowserOptions {
   userAgent?: string;
   /** Slow down operations by specified milliseconds (useful for debugging) */
   slowMo?: number;
-  /** Enable video recording with visual cursor */
+  /** Enable video recording (automatically enables visual cursor) */
   video?: boolean | VideoOptions;
+  /** Show visual cursor overlay. Automatically enabled when video is true. Useful for debugging in headed mode. */
+  showCursor?: boolean;
 }
 
 export interface CursorOptions {
@@ -54,8 +56,10 @@ export interface SessionOptions {
     width: number;
     height: number;
   };
-  /** Enable video recording with visual cursor */
+  /** Enable video recording (automatically enables visual cursor) */
   video?: boolean | VideoOptions;
+  /** Show visual cursor overlay. Automatically enabled when video is true. Useful for debugging in headed mode. */
+  showCursor?: boolean;
 }
 
 export type CommandAction =

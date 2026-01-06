@@ -92,6 +92,7 @@ export async function startSession(options: SessionOptions = {}): Promise<Sessio
     headless: options.headless ?? false,
     viewport: options.viewport,
     video: options.video,
+    showCursor: options.showCursor,
   });
   log.info('Browser launched', videoEnabled ? '(video recording enabled)' : '');
 
@@ -820,6 +821,7 @@ export async function startSession(options: SessionOptions = {}): Promise<Sessio
         headless: options.headless ?? false,
         viewport: options.viewport,
         video: options.video,
+        showCursor: options.showCursor,
       });
       browser = newInstance.browser;
       context = newInstance.context;
