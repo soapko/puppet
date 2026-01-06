@@ -39,6 +39,7 @@ export const test = baseTest.extend<PuppetFixtures>({
     if (!sharedBrowser || !sharedBrowser.isRunning()) {
       sharedBrowser = await puppet({
         headless: config.headless,
+        viewport: config.viewport,
       });
     }
 

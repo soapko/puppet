@@ -467,9 +467,20 @@ import { defineConfig } from 'puppet/test';
 export default defineConfig({
   baseURL: 'http://localhost:3000',
   headless: true,
+  viewport: { width: 1920, height: 1080 }, // Default viewport size
   timeout: 30000,
   screenshotOnFailure: true,
   screenshotDir: './test-results',
+});
+```
+
+**Testing mobile viewports:**
+
+```typescript
+export default defineConfig({
+  baseURL: 'http://localhost:3000',
+  headless: true,
+  viewport: { width: 390, height: 844 }, // iPhone 14
 });
 ```
 

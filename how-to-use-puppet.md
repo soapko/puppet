@@ -1330,6 +1330,100 @@ interface SessionOptions {
 }
 ```
 
+### Viewport Configuration
+
+The viewport option controls the browser window size. If not specified, defaults to `1920x1080`.
+
+**Setting viewport with different APIs:**
+
+```typescript
+// Fluent API
+import { puppet, withBrowser } from 'puppet';
+
+const browser = await puppet({
+  viewport: { width: 1280, height: 720 },
+});
+
+// Or with auto-cleanup
+await withBrowser(
+  async browser => {
+    await browser.goto('https://example.com');
+  },
+  { viewport: { width: 1280, height: 720 } }
+);
+
+// Session API
+import { createSession } from 'puppet';
+
+const session = await createSession({
+  viewport: { width: 1440, height: 900 },
+});
+
+// Script Mode
+import { getBrowser, createContext, launchBrowser } from 'puppet';
+
+const { browser, page } = await getBrowser({
+  viewport: { width: 1920, height: 1080 },
+});
+
+// Or with lower-level control
+const browser = await launchBrowser();
+const context = await createContext(browser, {
+  viewport: { width: 1280, height: 720 },
+});
+```
+
+**Testing mobile viewports:**
+
+Set viewport dimensions to match mobile device screen sizes:
+
+```typescript
+// iPhone SE
+await puppet({ viewport: { width: 375, height: 667 } });
+
+// iPhone 12/13/14
+await puppet({ viewport: { width: 390, height: 844 } });
+
+// iPhone 14 Pro Max
+await puppet({ viewport: { width: 430, height: 932 } });
+
+// Pixel 7
+await puppet({ viewport: { width: 412, height: 915 } });
+
+// iPad
+await puppet({ viewport: { width: 768, height: 1024 } });
+```
+
+**Common viewport sizes:**
+
+| Device             | Width | Height |
+| ------------------ | ----- | ------ |
+| iPhone SE          | 375   | 667    |
+| iPhone 12/13/14    | 390   | 844    |
+| iPhone 14 Pro Max  | 430   | 932    |
+| Pixel 7            | 412   | 915    |
+| Samsung Galaxy S21 | 360   | 800    |
+| iPad               | 768   | 1024   |
+| iPad Pro 12.9"     | 1024  | 1366   |
+| Laptop             | 1280  | 720    |
+| Desktop            | 1920  | 1080   |
+
+**With mobile user agent:**
+
+For more realistic mobile testing, combine viewport with a mobile user agent:
+
+```typescript
+import { getBrowser } from 'puppet';
+
+const { browser, page } = await getBrowser({
+  viewport: { width: 390, height: 844 },
+  userAgent:
+    'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1',
+});
+```
+
+**Limitation:** Puppet currently does not support touch emulation (`hasTouch`) or mobile browser mode (`isMobile`). The viewport and user agent changes are sufficient for most responsive design testing, but touch-specific interactions are not emulated.
+
 ---
 
 ## Troubleshooting
