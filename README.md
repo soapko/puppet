@@ -102,6 +102,7 @@ await browser.click('[name="email"]'); // → [name="email"]
 | --------------------------------------- | ------------------------------- |
 | `goto(url)`                             | Navigate to URL                 |
 | `click(selector)`                       | Click element                   |
+| `drag(source, target)`                  | Drag element to target          |
 | `type(selector, text)`                  | Type text into input            |
 | `clear(selector)`                       | Clear input field               |
 | `text(selector)`                        | Get element text content        |
@@ -313,6 +314,8 @@ test('recorded test', async ({ page }) => {
 ```
 
 Supports `--format=playwright` for Playwright output. Prioritizes `data-testid` selectors for stability.
+
+The recorder captures drag-and-drop interactions too — generating `page.drag()` for puppet format and `page.dragAndDrop()` for Playwright format.
 
 ---
 

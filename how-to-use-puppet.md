@@ -152,6 +152,7 @@ console.log(testid('submit')); // '[data-testid="submit"]'
 | ----------------------------- | ------------------------------- |
 | `goto(url)`                   | Navigate to URL                 |
 | `click(selector)`             | Click element                   |
+| `drag(source, target)`        | Drag element to target          |
 | `type(selector, text)`        | Type text into input            |
 | `clear(selector)`             | Clear input field               |
 | `text(selector)`              | Get element text content        |
@@ -565,6 +566,24 @@ ws.onmessage = event => {
 };
 ```
 
+**Drag and drop via WebSocket:**
+
+```javascript
+ws.send(
+  JSON.stringify({
+    type: 'command',
+    id: '2',
+    command: {
+      action: 'drag',
+      params: {
+        sourceSelector: '[data-testid="task-1"]',
+        targetSelector: '[data-testid="done-column"]',
+      },
+    },
+  })
+);
+```
+
 ### From Python
 
 ```python
@@ -631,6 +650,7 @@ puppet>
 | Command | Description |
 | ------- | ----------- |
 | `click <selector>` | Click element |
+| `drag <source> <target>` | Drag element to target (alias: `dragto`) |
 | `type <selector> <text>` | Type text into element |
 | `clear [selector]` | Clear input, or cookies/storage if no selector |
 | `hover <selector>` | Hover over element |
@@ -703,6 +723,9 @@ Example Domain
 puppet> screenshot ./debug.png
 Screenshot saved: ./debug.png
 
+puppet> drag task-1 done-column
+Dragged task-1 to done-column
+
 puppet> eval document.querySelectorAll('a').length
 1
 
@@ -716,6 +739,7 @@ Closing browser...
 | ------------ | ----------- |
 | `goto`       | `go`, `nav` |
 | `click`      | `c`         |
+| `drag`       | `dragto`    |
 | `type`       | `t`         |
 | `value`      | `val`       |
 | `screenshot` | `ss`        |
@@ -931,6 +955,9 @@ const cursor = createCursor(page, {
 // Click with human-like cursor movement
 await cursor.click('button.submit');
 
+// Drag and drop with smooth motion
+await cursor.drag('.card:first-child', '.column-done');
+
 // Double-click
 await cursor.doubleClick('div.item');
 
@@ -1034,39 +1061,40 @@ cat ~/.puppet/results.json
 
 ### Available Commands
 
-| Action            | Params                                      | Description                                 |
-| ----------------- | ------------------------------------------- | ------------------------------------------- |
-| `goto`            | `url`                                       | Navigate to URL                             |
-| `click`           | `selector`, `retry?`                        | Click element with human-like cursor        |
-| `type`            | `selector`, `text`, `retry?`                | Type text into input field                  |
-| `clear`           | `selector`                                  | Clear input field                           |
-| `scroll`          | `direction` (`up`/`down`), `amount`         | Scroll page                                 |
-| `screenshot`      | `fullPage` (boolean)                        | Capture screenshot, returns base64          |
-| `evaluate`        | `script`                                    | Execute JavaScript, returns result          |
-| `waitFor`         | `selector`, `timeout?`, `retry?`            | Wait for element to appear                  |
-| `waitForLoaded`   | `selectors?`, `timeout?`, `waitForNetwork?` | Wait for loading indicators to disappear    |
-| `getUrl`          | -                                           | Get current page URL                        |
-| `getTitle`        | -                                           | Get page title                              |
-| `setDialogAction` | `action` (`accept`/`dismiss`)               | Set behavior for alert/confirm dialogs      |
-| `getLastDialog`   | -                                           | Get message from last dialog                |
-| `clearState`      | `includeIndexedDB?`                         | Clear cookies, localStorage, sessionStorage |
-| `uploadFile`      | `selector`, `filePath`                      | Upload file(s) to file input                |
-| `switchToFrame`   | `selector`                                  | Switch context into an iframe               |
-| `switchToMain`    | -                                           | Switch back to main page context            |
-| `getFrames`       | -                                           | List all frames on the page                 |
-| `assertVisible`   | `selector`                                  | Assert element is visible                   |
-| `assertHidden`    | `selector`                                  | Assert element is hidden                    |
-| `assertText`      | `selector`, `expected`, `exact?`            | Assert text content matches                 |
-| `assertValue`     | `selector`, `expected`                      | Assert input value matches                  |
-| `assertChecked`   | `selector`                                  | Assert checkbox is checked                  |
-| `assertUnchecked` | `selector`                                  | Assert checkbox is unchecked                |
-| `assertEnabled`   | `selector`                                  | Assert element is enabled                   |
-| `assertDisabled`  | `selector`                                  | Assert element is disabled                  |
-| `assertUrl`       | `expected`, `exact?`                        | Assert current URL matches                  |
-| `assertTitle`     | `expected`, `exact?`                        | Assert page title matches                   |
-| `assertCount`     | `selector`, `count`                         | Assert number of matching elements          |
-| `init` / `noop`   | -                                           | No-op, useful for testing connection        |
-| `close`           | -                                           | Close the session                           |
+| Action            | Params                                       | Description                                 |
+| ----------------- | -------------------------------------------- | ------------------------------------------- |
+| `goto`            | `url`                                        | Navigate to URL                             |
+| `click`           | `selector`, `retry?`                         | Click element with human-like cursor        |
+| `drag`            | `sourceSelector`, `targetSelector`, `retry?` | Drag element to target                      |
+| `type`            | `selector`, `text`, `retry?`                 | Type text into input field                  |
+| `clear`           | `selector`                                   | Clear input field                           |
+| `scroll`          | `direction` (`up`/`down`), `amount`          | Scroll page                                 |
+| `screenshot`      | `fullPage` (boolean)                         | Capture screenshot, returns base64          |
+| `evaluate`        | `script`                                     | Execute JavaScript, returns result          |
+| `waitFor`         | `selector`, `timeout?`, `retry?`             | Wait for element to appear                  |
+| `waitForLoaded`   | `selectors?`, `timeout?`, `waitForNetwork?`  | Wait for loading indicators to disappear    |
+| `getUrl`          | -                                            | Get current page URL                        |
+| `getTitle`        | -                                            | Get page title                              |
+| `setDialogAction` | `action` (`accept`/`dismiss`)                | Set behavior for alert/confirm dialogs      |
+| `getLastDialog`   | -                                            | Get message from last dialog                |
+| `clearState`      | `includeIndexedDB?`                          | Clear cookies, localStorage, sessionStorage |
+| `uploadFile`      | `selector`, `filePath`                       | Upload file(s) to file input                |
+| `switchToFrame`   | `selector`                                   | Switch context into an iframe               |
+| `switchToMain`    | -                                            | Switch back to main page context            |
+| `getFrames`       | -                                            | List all frames on the page                 |
+| `assertVisible`   | `selector`                                   | Assert element is visible                   |
+| `assertHidden`    | `selector`                                   | Assert element is hidden                    |
+| `assertText`      | `selector`, `expected`, `exact?`             | Assert text content matches                 |
+| `assertValue`     | `selector`, `expected`                       | Assert input value matches                  |
+| `assertChecked`   | `selector`                                   | Assert checkbox is checked                  |
+| `assertUnchecked` | `selector`                                   | Assert checkbox is unchecked                |
+| `assertEnabled`   | `selector`                                   | Assert element is enabled                   |
+| `assertDisabled`  | `selector`                                   | Assert element is disabled                  |
+| `assertUrl`       | `expected`, `exact?`                         | Assert current URL matches                  |
+| `assertTitle`     | `expected`, `exact?`                         | Assert page title matches                   |
+| `assertCount`     | `selector`, `count`                          | Assert number of matching elements          |
+| `init` / `noop`   | -                                            | No-op, useful for testing connection        |
+| `close`           | -                                            | Close the session                           |
 
 ### Command/Result Format
 
@@ -1134,6 +1162,25 @@ await sendCommand({ action: 'clearState' });
 
 await sendCommand({ action: 'clearState', params: { includeIndexedDB: true } });
 // Also clears IndexedDB
+```
+
+### Drag and Drop
+
+```javascript
+// Drag element to target with human-like cursor motion
+await sendCommand({
+  action: 'drag',
+  params: {
+    sourceSelector: '[data-testid="task-card"]',
+    targetSelector: '[data-testid="done-column"]',
+  },
+});
+
+// Smart selector shorthand works too
+await sendCommand({
+  action: 'drag',
+  params: { sourceSelector: 'task-card', targetSelector: 'done-column' },
+});
 ```
 
 ### Working with iframes
@@ -1264,17 +1311,18 @@ await sendCommand({ action: 'click', params: { selector: '.morelink' } });
 
 ### Cursor Methods
 
-| Method                       | Description                                 |
-| ---------------------------- | ------------------------------------------- |
-| `click(selector)`            | Move to element and click                   |
-| `doubleClick(selector)`      | Move to element and double-click            |
-| `type(selector, text)`       | Click element and type with variable delays |
-| `moveTo(selector)`           | Move cursor to element                      |
-| `moveToCoords(x, y)`         | Move cursor to coordinates                  |
-| `scroll(direction, amount?)` | Scroll in chunks                            |
-| `scrollTo(selector)`         | Scroll element into view                    |
-| `wait(min?, max?)`           | Random delay                                |
-| `idle(duration?)`            | Random micro-movements                      |
+| Method                       | Description                                   |
+| ---------------------------- | --------------------------------------------- |
+| `click(selector)`            | Move to element and click                     |
+| `drag(source, target)`       | Drag from source to target with smooth motion |
+| `doubleClick(selector)`      | Move to element and double-click              |
+| `type(selector, text)`       | Click element and type with variable delays   |
+| `moveTo(selector)`           | Move cursor to element                        |
+| `moveToCoords(x, y)`         | Move cursor to coordinates                    |
+| `scroll(direction, amount?)` | Scroll in chunks                              |
+| `scrollTo(selector)`         | Scroll element into view                      |
+| `wait(min?, max?)`           | Random delay                                  |
+| `idle(duration?)`            | Random micro-movements                        |
 
 ### Session Functions
 

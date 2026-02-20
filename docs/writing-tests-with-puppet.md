@@ -322,6 +322,59 @@ test('can fill payment iframe', async ({ page }) => {
 });
 ```
 
+### Drag and Drop
+
+Use `page.drag(source, target)` to test sortable lists, kanban boards, sliders, and similar drag-and-drop UIs. The cursor moves to the source element with human-like motion, presses the mouse, drags smoothly to the target, and releases.
+
+```typescript
+test('can reorder items by dragging', async ({ page }) => {
+  await page.goto('/kanban');
+
+  // Drag a card from one column to another
+  await page.drag('task-1', 'done-column');
+
+  await expect(page).toHaveText('done-column', 'Buy groceries');
+});
+```
+
+**Sortable list:**
+
+```typescript
+test('can sort list items', async ({ page }) => {
+  await page.goto('/settings/priorities');
+
+  // Drag first item to third position
+  await page.drag('item-1', 'item-3');
+
+  // Verify new order
+  await expect(page).toHaveText('.list-item:nth-child(1)', 'Medium');
+  await expect(page).toHaveText('.list-item:nth-child(2)', 'High');
+});
+```
+
+**File drop zone:**
+
+```typescript
+test('can drag file to upload zone', async ({ page }) => {
+  await page.goto('/upload');
+
+  // Drag a thumbnail to the drop zone
+  await page.drag('file-thumbnail', 'drop-zone');
+
+  await expect(page).toBeVisible('upload-preview');
+});
+```
+
+**With iframes:** When inside an iframe context (via `page.frame()`), drag falls back to Playwright's native `dragAndDrop`, which works but without the human-like cursor animation.
+
+**Selectors:** Both arguments use smart selector resolution — bare strings become `data-testid` selectors, CSS selectors pass through:
+
+```typescript
+await page.drag('drag-handle', 'drop-target'); // testid selectors
+await page.drag('.card:first-child', '.column-done'); // CSS selectors
+await page.drag('#item-1', '[data-slot="3"]'); // Mixed
+```
+
 ### Scrolling
 
 ```typescript
