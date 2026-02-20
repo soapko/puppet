@@ -231,6 +231,29 @@ export async function startSession(options: SessionOptions = {}): Promise<Sessio
           }, retryOpts);
           break;
 
+        case 'dragCoordinates': {
+          const sx = params.sourceX as number;
+          const sy = params.sourceY as number;
+          const tx = params.targetX as number;
+          const ty = params.targetY as number;
+
+          // Move to source with human-like motion
+          await cursor.moveToCoords(sx, sy);
+          await new Promise(r => setTimeout(r, 400 + Math.random() * 200));
+
+          // Press mouse down (trusted CDP event)
+          await page.mouse.down();
+          await new Promise(r => setTimeout(r, 100 + Math.random() * 100));
+
+          // Drag to target with human-like motion
+          await cursor.moveToCoords(tx, ty);
+          await new Promise(r => setTimeout(r, 200 + Math.random() * 200));
+
+          // Release mouse (trusted CDP event)
+          await page.mouse.up();
+          break;
+        }
+
         case 'clear':
           await currentFrame.locator(params.selector as string).clear();
           break;

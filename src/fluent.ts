@@ -56,6 +56,23 @@ export class Browser {
   }
 
   /**
+   * Drag using pixel coordinates (for captchas, canvas, non-selectable elements)
+   * All events are trusted CDP-level input events (Event.isTrusted === true)
+   * @param sourceX - X coordinate of drag start
+   * @param sourceY - Y coordinate of drag start
+   * @param targetX - X coordinate of drag end
+   * @param targetY - Y coordinate of drag end
+   */
+  async dragCoordinates(
+    sourceX: number,
+    sourceY: number,
+    targetX: number,
+    targetY: number
+  ): Promise<void> {
+    await this.send('dragCoordinates', { sourceX, sourceY, targetX, targetY });
+  }
+
+  /**
    * Type text into an element
    * @param selector - CSS selector or testid
    * @param text - Text to type

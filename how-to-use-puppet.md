@@ -148,37 +148,38 @@ console.log(testid('submit')); // '[data-testid="submit"]'
 
 ### Browser Methods
 
-| Method                        | Description                     |
-| ----------------------------- | ------------------------------- |
-| `goto(url)`                   | Navigate to URL                 |
-| `click(selector)`             | Click element                   |
-| `drag(source, target)`        | Drag element to target          |
-| `type(selector, text)`        | Type text into input            |
-| `clear(selector)`             | Clear input field               |
-| `text(selector)`              | Get element text content        |
-| `value(selector)`             | Get input value                 |
-| `html(selector?)`             | Get HTML (element or full page) |
-| `screenshot(path?)`           | Take screenshot                 |
-| `select(selector, value)`     | Select dropdown option          |
-| `check(selector)`             | Check checkbox                  |
-| `uncheck(selector)`           | Uncheck checkbox                |
-| `hover(selector)`             | Hover over element              |
-| `scroll(direction, amount)`   | Scroll page                     |
-| `wait(ms)`                    | Wait for milliseconds           |
-| `waitFor(selector, timeout?)` | Wait for element                |
-| `waitForLoaded(timeout?)`     | Wait for loading to complete    |
-| `evaluate(script)`            | Execute JavaScript              |
-| `upload(selector, path)`      | Upload file(s)                  |
-| `frame(selector)`             | Switch to iframe                |
-| `mainFrame()`                 | Switch to main frame            |
-| `url()`                       | Get current URL                 |
-| `title()`                     | Get page title                  |
-| `clearState()`                | Clear cookies/storage           |
-| `setDialogAction(action)`     | Set dialog behavior             |
-| `getLastDialog()`             | Get last dialog message         |
-| `close()`                     | Close browser                   |
-| `isRunning()`                 | Check if browser is running     |
-| `restart()`                   | Restart browser session         |
+| Method                            | Description                     |
+| --------------------------------- | ------------------------------- |
+| `goto(url)`                       | Navigate to URL                 |
+| `click(selector)`                 | Click element                   |
+| `drag(source, target)`            | Drag element to target          |
+| `dragCoordinates(sx, sy, tx, ty)` | Drag by pixel coordinates       |
+| `type(selector, text)`            | Type text into input            |
+| `clear(selector)`                 | Clear input field               |
+| `text(selector)`                  | Get element text content        |
+| `value(selector)`                 | Get input value                 |
+| `html(selector?)`                 | Get HTML (element or full page) |
+| `screenshot(path?)`               | Take screenshot                 |
+| `select(selector, value)`         | Select dropdown option          |
+| `check(selector)`                 | Check checkbox                  |
+| `uncheck(selector)`               | Uncheck checkbox                |
+| `hover(selector)`                 | Hover over element              |
+| `scroll(direction, amount)`       | Scroll page                     |
+| `wait(ms)`                        | Wait for milliseconds           |
+| `waitFor(selector, timeout?)`     | Wait for element                |
+| `waitForLoaded(timeout?)`         | Wait for loading to complete    |
+| `evaluate(script)`                | Execute JavaScript              |
+| `upload(selector, path)`          | Upload file(s)                  |
+| `frame(selector)`                 | Switch to iframe                |
+| `mainFrame()`                     | Switch to main frame            |
+| `url()`                           | Get current URL                 |
+| `title()`                         | Get page title                  |
+| `clearState()`                    | Clear cookies/storage           |
+| `setDialogAction(action)`         | Set dialog behavior             |
+| `getLastDialog()`                 | Get last dialog message         |
+| `close()`                         | Close browser                   |
+| `isRunning()`                     | Check if browser is running     |
+| `restart()`                       | Restart browser session         |
 
 ### Assertions
 
@@ -651,6 +652,7 @@ puppet>
 | ------- | ----------- |
 | `click <selector>` | Click element |
 | `drag <source> <target>` | Drag element to target (alias: `dragto`) |
+| `dragcoordinates <sx> <sy> <tx> <ty>` | Drag by pixel coordinates (aliases: `dragcoords`, `dc`) |
 | `type <selector> <text>` | Type text into element |
 | `clear [selector]` | Clear input, or cookies/storage if no selector |
 | `hover <selector>` | Hover over element |
@@ -735,22 +737,23 @@ Closing browser...
 
 ### Command Aliases
 
-| Full Command | Aliases     |
-| ------------ | ----------- |
-| `goto`       | `go`, `nav` |
-| `click`      | `c`         |
-| `drag`       | `dragto`    |
-| `type`       | `t`         |
-| `value`      | `val`       |
-| `screenshot` | `ss`        |
-| `waitfor`    | `wf`        |
-| `waitloaded` | `wl`        |
-| `mainframe`  | `main`      |
-| `reload`     | `refresh`   |
-| `wait`       | `sleep`     |
-| `eval`       | `js`        |
-| `help`       | `h`, `?`    |
-| `exit`       | `quit`, `q` |
+| Full Command      | Aliases            |
+| ----------------- | ------------------ |
+| `goto`            | `go`, `nav`        |
+| `click`           | `c`                |
+| `drag`            | `dragto`           |
+| `dragcoordinates` | `dragcoords`, `dc` |
+| `type`            | `t`                |
+| `value`           | `val`              |
+| `screenshot`      | `ss`               |
+| `waitfor`         | `wf`               |
+| `waitloaded`      | `wl`               |
+| `mainframe`       | `main`             |
+| `reload`          | `refresh`          |
+| `wait`            | `sleep`            |
+| `eval`            | `js`               |
+| `help`            | `h`, `?`           |
+| `exit`            | `quit`, `q`        |
 
 ---
 
@@ -1061,40 +1064,41 @@ cat ~/.puppet/results.json
 
 ### Available Commands
 
-| Action            | Params                                       | Description                                 |
-| ----------------- | -------------------------------------------- | ------------------------------------------- |
-| `goto`            | `url`                                        | Navigate to URL                             |
-| `click`           | `selector`, `retry?`                         | Click element with human-like cursor        |
-| `drag`            | `sourceSelector`, `targetSelector`, `retry?` | Drag element to target                      |
-| `type`            | `selector`, `text`, `retry?`                 | Type text into input field                  |
-| `clear`           | `selector`                                   | Clear input field                           |
-| `scroll`          | `direction` (`up`/`down`), `amount`          | Scroll page                                 |
-| `screenshot`      | `fullPage` (boolean)                         | Capture screenshot, returns base64          |
-| `evaluate`        | `script`                                     | Execute JavaScript, returns result          |
-| `waitFor`         | `selector`, `timeout?`, `retry?`             | Wait for element to appear                  |
-| `waitForLoaded`   | `selectors?`, `timeout?`, `waitForNetwork?`  | Wait for loading indicators to disappear    |
-| `getUrl`          | -                                            | Get current page URL                        |
-| `getTitle`        | -                                            | Get page title                              |
-| `setDialogAction` | `action` (`accept`/`dismiss`)                | Set behavior for alert/confirm dialogs      |
-| `getLastDialog`   | -                                            | Get message from last dialog                |
-| `clearState`      | `includeIndexedDB?`                          | Clear cookies, localStorage, sessionStorage |
-| `uploadFile`      | `selector`, `filePath`                       | Upload file(s) to file input                |
-| `switchToFrame`   | `selector`                                   | Switch context into an iframe               |
-| `switchToMain`    | -                                            | Switch back to main page context            |
-| `getFrames`       | -                                            | List all frames on the page                 |
-| `assertVisible`   | `selector`                                   | Assert element is visible                   |
-| `assertHidden`    | `selector`                                   | Assert element is hidden                    |
-| `assertText`      | `selector`, `expected`, `exact?`             | Assert text content matches                 |
-| `assertValue`     | `selector`, `expected`                       | Assert input value matches                  |
-| `assertChecked`   | `selector`                                   | Assert checkbox is checked                  |
-| `assertUnchecked` | `selector`                                   | Assert checkbox is unchecked                |
-| `assertEnabled`   | `selector`                                   | Assert element is enabled                   |
-| `assertDisabled`  | `selector`                                   | Assert element is disabled                  |
-| `assertUrl`       | `expected`, `exact?`                         | Assert current URL matches                  |
-| `assertTitle`     | `expected`, `exact?`                         | Assert page title matches                   |
-| `assertCount`     | `selector`, `count`                          | Assert number of matching elements          |
-| `init` / `noop`   | -                                            | No-op, useful for testing connection        |
-| `close`           | -                                            | Close the session                           |
+| Action            | Params                                       | Description                                      |
+| ----------------- | -------------------------------------------- | ------------------------------------------------ |
+| `goto`            | `url`                                        | Navigate to URL                                  |
+| `click`           | `selector`, `retry?`                         | Click element with human-like cursor             |
+| `drag`            | `sourceSelector`, `targetSelector`, `retry?` | Drag element to target                           |
+| `dragCoordinates` | `sourceX`, `sourceY`, `targetX`, `targetY`   | Drag by pixel coordinates (for captchas, canvas) |
+| `type`            | `selector`, `text`, `retry?`                 | Type text into input field                       |
+| `clear`           | `selector`                                   | Clear input field                                |
+| `scroll`          | `direction` (`up`/`down`), `amount`          | Scroll page                                      |
+| `screenshot`      | `fullPage` (boolean)                         | Capture screenshot, returns base64               |
+| `evaluate`        | `script`                                     | Execute JavaScript, returns result               |
+| `waitFor`         | `selector`, `timeout?`, `retry?`             | Wait for element to appear                       |
+| `waitForLoaded`   | `selectors?`, `timeout?`, `waitForNetwork?`  | Wait for loading indicators to disappear         |
+| `getUrl`          | -                                            | Get current page URL                             |
+| `getTitle`        | -                                            | Get page title                                   |
+| `setDialogAction` | `action` (`accept`/`dismiss`)                | Set behavior for alert/confirm dialogs           |
+| `getLastDialog`   | -                                            | Get message from last dialog                     |
+| `clearState`      | `includeIndexedDB?`                          | Clear cookies, localStorage, sessionStorage      |
+| `uploadFile`      | `selector`, `filePath`                       | Upload file(s) to file input                     |
+| `switchToFrame`   | `selector`                                   | Switch context into an iframe                    |
+| `switchToMain`    | -                                            | Switch back to main page context                 |
+| `getFrames`       | -                                            | List all frames on the page                      |
+| `assertVisible`   | `selector`                                   | Assert element is visible                        |
+| `assertHidden`    | `selector`                                   | Assert element is hidden                         |
+| `assertText`      | `selector`, `expected`, `exact?`             | Assert text content matches                      |
+| `assertValue`     | `selector`, `expected`                       | Assert input value matches                       |
+| `assertChecked`   | `selector`                                   | Assert checkbox is checked                       |
+| `assertUnchecked` | `selector`                                   | Assert checkbox is unchecked                     |
+| `assertEnabled`   | `selector`                                   | Assert element is enabled                        |
+| `assertDisabled`  | `selector`                                   | Assert element is disabled                       |
+| `assertUrl`       | `expected`, `exact?`                         | Assert current URL matches                       |
+| `assertTitle`     | `expected`, `exact?`                         | Assert page title matches                        |
+| `assertCount`     | `selector`, `count`                          | Assert number of matching elements               |
+| `init` / `noop`   | -                                            | No-op, useful for testing connection             |
+| `close`           | -                                            | Close the session                                |
 
 ### Command/Result Format
 
@@ -1180,6 +1184,12 @@ await sendCommand({
 await sendCommand({
   action: 'drag',
   params: { sourceSelector: 'task-card', targetSelector: 'done-column' },
+});
+
+// Coordinate-based drag (for captchas, canvas, non-selectable elements)
+await sendCommand({
+  action: 'dragCoordinates',
+  params: { sourceX: 300, sourceY: 450, targetX: 700, targetY: 450 },
 });
 ```
 

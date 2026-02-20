@@ -103,6 +103,7 @@ await browser.click('[name="email"]'); // → [name="email"]
 | `goto(url)`                             | Navigate to URL                 |
 | `click(selector)`                       | Click element                   |
 | `drag(source, target)`                  | Drag element to target          |
+| `dragCoordinates(sx, sy, tx, ty)`       | Drag by pixel coordinates       |
 | `type(selector, text)`                  | Type text into input            |
 | `clear(selector)`                       | Clear input field               |
 | `text(selector)`                        | Get element text content        |

@@ -41,6 +41,10 @@
 - [✅] WebSocket mode -> [002.feature.19-websocket-mode.md](docs/tasks/002.feature.19-websocket-mode.md)
 - [✅] Recording mode -> [002.feature.20-recording-mode.md](docs/tasks/002.feature.20-recording-mode.md)
 
+### Coordinate-Based Interactions
+
+- [✅] Coordinate-based drag for captchas and non-selectable elements -> [002.feature.21-coordinate-based-drag.md](docs/tasks/archive/002.feature.21-coordinate-based-drag.md)
+
 ## 003.bugfix
 
 - [✅] Fix session lifecycle and error recovery -> [003.bugfix.01-session-lifecycle.md](docs/tasks/003.bugfix.01-session-lifecycle.md)

@@ -375,6 +375,17 @@ await page.drag('.card:first-child', '.column-done'); // CSS selectors
 await page.drag('#item-1', '[data-slot="3"]'); // Mixed
 ```
 
+**Coordinate-based drag:** For captcha sliders, canvas elements, or anything without selectable DOM nodes, use `dragCoordinates` with pixel coordinates. All events are trusted CDP-level inputs (`Event.isTrusted === true`):
+
+```typescript
+test('can solve slide captcha', async ({ page }) => {
+  await page.goto('/captcha');
+
+  // Drag slider handle from left to right by pixel coordinates
+  await page.dragCoordinates(300, 450, 700, 450);
+});
+```
+
 ### Scrolling
 
 ```typescript

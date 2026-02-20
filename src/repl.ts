@@ -133,6 +133,20 @@ async function executeReplCommand(input: string): Promise<unknown> {
       return `Dragged ${args[0]} to ${args[1]}`;
     }
 
+    case 'dragcoordinates':
+    case 'dragcoords':
+    case 'dc': {
+      if (args.length < 4)
+        throw new Error('Usage: dragcoordinates <sourceX> <sourceY> <targetX> <targetY>');
+      const [sx, sy, tx, ty] = args.map(Number);
+      if ([sx, sy, tx, ty].some(isNaN)) throw new Error('All coordinates must be numbers');
+      await sendCommand({
+        action: 'dragCoordinates',
+        params: { sourceX: sx, sourceY: sy, targetX: tx, targetY: ty },
+      });
+      return `Dragged from (${sx}, ${sy}) to (${tx}, ${ty})`;
+    }
+
     case 'type':
     case 't': {
       if (!args[0] || args.length < 2) throw new Error('Usage: type <selector> <text>');

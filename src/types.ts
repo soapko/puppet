@@ -68,6 +68,7 @@ export type CommandAction =
   | 'goto'
   | 'click'
   | 'drag'
+  | 'dragCoordinates'
   | 'clear'
   | 'type'
   | 'scroll'
