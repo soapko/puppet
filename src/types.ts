@@ -67,6 +67,7 @@ export type CommandAction =
   | 'noop'
   | 'goto'
   | 'click'
+  | 'drag'
   | 'clear'
   | 'type'
   | 'scroll'

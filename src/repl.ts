@@ -120,6 +120,19 @@ async function executeReplCommand(input: string): Promise<unknown> {
       return `Clicked ${args[0]}`;
     }
 
+    case 'drag':
+    case 'dragto': {
+      if (!args[0] || !args[1]) throw new Error('Usage: drag <source> <target>');
+      await sendCommand({
+        action: 'drag',
+        params: {
+          sourceSelector: resolveSelector(args[0]),
+          targetSelector: resolveSelector(args[1]),
+        },
+      });
+      return `Dragged ${args[0]} to ${args[1]}`;
+    }
+
     case 'type':
     case 't': {
       if (!args[0] || args.length < 2) throw new Error('Usage: type <selector> <text>');
@@ -349,6 +362,7 @@ NAVIGATION
 
 INTERACTION
   click <sel>             Click element (alias: c)
+  drag <from> <to>        Drag element to target (alias: dragto)
   type <sel> <text>       Type text into element (alias: t)
   clear [sel]             Clear input, or cookies/storage if no selector
   hover <sel>             Hover over element

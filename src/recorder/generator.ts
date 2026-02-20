@@ -5,7 +5,7 @@
  */
 
 export interface RecordedEvent {
-  type: 'goto' | 'click' | 'type' | 'select' | 'check' | 'uncheck' | 'scroll';
+  type: 'goto' | 'click' | 'drag' | 'type' | 'select' | 'check' | 'uncheck' | 'scroll';
   selector: string;
   value?: string;
   timestamp: number;
@@ -126,6 +126,12 @@ function generatePuppetCode(
         lines.push(`  await page.click('${escapeString(selector)}');${timestamp}`);
         break;
 
+      case 'drag':
+        lines.push(
+          `  await page.drag('${escapeString(selector)}', '${escapeString(simplifySelector(event.value || ''))}');${timestamp}`
+        );
+        break;
+
       case 'type':
         lines.push(
           `  await page.type('${escapeString(selector)}', '${escapeString(event.value || '')}');${timestamp}`
@@ -183,6 +189,12 @@ function generatePlaywrightCode(
 
       case 'click':
         lines.push(`  await page.click('${escapeString(selector)}');${timestamp}`);
+        break;
+
+      case 'drag':
+        lines.push(
+          `  await page.dragAndDrop('${escapeString(selector)}', '${escapeString(event.value || '')}');${timestamp}`
+        );
         break;
 
       case 'type':

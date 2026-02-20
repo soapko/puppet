@@ -335,6 +335,61 @@ export class Cursor {
   }
 
   /**
+   * Drag element to target with human-like motion
+   * Moves to source, presses mouse, drags to target, releases
+   */
+  async drag(sourceSelector: string, targetSelector: string): Promise<void> {
+    // Wait for both elements to be attached to DOM
+    await this.page.waitForSelector(sourceSelector, { state: 'attached', timeout: 5000 });
+    await this.page.waitForSelector(targetSelector, { state: 'attached', timeout: 5000 });
+
+    // Check if source is covered by another element
+    const coveredBy = await this.checkIfCovered(sourceSelector);
+    if (coveredBy) {
+      throw new Error(
+        `Element "${sourceSelector}" is covered by "${coveredBy}". ` +
+          `Dismiss the covering element first.`
+      );
+    }
+
+    // Move to source element
+    await this.moveTo(sourceSelector);
+
+    // Pause so viewer registers the source
+    await this.randomDelay(400, 600);
+
+    // Visual feedback at pickup point
+    await this.triggerVisualClick(this.lastX, this.lastY);
+
+    // Press mouse down
+    await this.page.mouse.down();
+
+    // Brief hold before dragging
+    await this.randomDelay(100, 200);
+
+    // Get target position and drag to it with human-like motion
+    const box = await this.page.locator(targetSelector).boundingBox();
+    if (!box) {
+      // Release mouse before throwing
+      await this.page.mouse.up();
+      throw new Error(`Target element not found or not visible: ${targetSelector}`);
+    }
+
+    const paddingX = box.width * 0.1;
+    const paddingY = box.height * 0.1;
+    const targetX = box.x + paddingX + Math.random() * (box.width - 2 * paddingX);
+    const targetY = box.y + paddingY + Math.random() * (box.height - 2 * paddingY);
+
+    await this.smoothMove(targetX, targetY);
+
+    // Pause on drop target
+    await this.randomDelay(200, 400);
+
+    // Release mouse
+    await this.page.mouse.up();
+  }
+
+  /**
    * Double-click element with human-like approach
    */
   async doubleClick(selector: string): Promise<void> {

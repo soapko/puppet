@@ -44,6 +44,18 @@ export class Browser {
   }
 
   /**
+   * Drag an element to a target element
+   * @param sourceSelector - CSS selector or testid of the element to drag
+   * @param targetSelector - CSS selector or testid of the drop target
+   */
+  async drag(sourceSelector: string, targetSelector: string): Promise<void> {
+    await this.send('drag', {
+      sourceSelector: resolveSelector(sourceSelector),
+      targetSelector: resolveSelector(targetSelector),
+    });
+  }
+
+  /**
    * Type text into an element
    * @param selector - CSS selector or testid
    * @param text - Text to type

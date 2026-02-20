@@ -218,6 +218,19 @@ export async function startSession(options: SessionOptions = {}): Promise<Sessio
           }, retryOpts);
           break;
 
+        case 'drag':
+          await executeWithOptionalRetry(async () => {
+            if (currentFrame === page) {
+              await cursor.drag(params.sourceSelector as string, params.targetSelector as string);
+            } else {
+              await currentFrame.dragAndDrop(
+                params.sourceSelector as string,
+                params.targetSelector as string
+              );
+            }
+          }, retryOpts);
+          break;
+
         case 'clear':
           await currentFrame.locator(params.selector as string).clear();
           break;
