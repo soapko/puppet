@@ -103,6 +103,47 @@ export async function startSession(options: SessionOptions = {}): Promise<Sessio
   // Frame context for iframe support
   let currentFrame: Frame | typeof page = page;
 
+  // Tab management
+  const tabs = new Map<string, typeof page>();
+  let tabCounter = 0;
+  let activeTabId = String(++tabCounter);
+  tabs.set(activeTabId, page);
+  const intentionalCloses = new Set<string>();
+
+  /** Set up event listeners for a tab page */
+  function setupTabListeners(tabId: string, tabPage: typeof page) {
+    tabPage.on('close', () => {
+      if (intentionalCloses.has(tabId)) {
+        intentionalCloses.delete(tabId);
+        return; // Intentional close via closeTab command
+      }
+      log.info(`Tab ${tabId} closed unexpectedly`);
+      tabs.delete(tabId);
+      if (tabs.size === 0) {
+        log.error('All tabs closed unexpectedly');
+        running = false;
+        writeStatus();
+      } else if (tabId === activeTabId) {
+        // Switch to another tab
+        const [newId, newPage] = Array.from(tabs.entries())[0];
+        page = newPage;
+        activeTabId = newId;
+        currentFrame = page;
+        cursor = createCursor(page);
+      }
+    });
+
+    tabPage.on('dialog', async dialog => {
+      lastDialogMessage = dialog.message();
+      log.info(`Dialog (${dialog.type()}): "${lastDialogMessage}" - ${dialogAction}ing`);
+      if (dialogAction === 'accept') {
+        await dialog.accept();
+      } else {
+        await dialog.dismiss();
+      }
+    });
+  }
+
   // Dialog handling state
   let dialogAction: 'accept' | 'dismiss' = 'accept';
   let lastDialogMessage = '';
@@ -135,26 +176,11 @@ export async function startSession(options: SessionOptions = {}): Promise<Sessio
       log.error('Browser disconnected unexpectedly');
       browserConnected = false;
       running = false;
-      writeStatus(); // Update status file for external processes
+      writeStatus();
     });
 
-    // Handle page close
-    page.on('close', () => {
-      log.error('Page closed unexpectedly');
-      running = false;
-      writeStatus(); // Update status file for external processes
-    });
-
-    // Auto-accept dialogs (confirm, alert, prompt) for testing
-    page.on('dialog', async dialog => {
-      lastDialogMessage = dialog.message();
-      log.info(`Dialog (${dialog.type()}): "${lastDialogMessage}" - ${dialogAction}ing`);
-      if (dialogAction === 'accept') {
-        await dialog.accept();
-      } else {
-        await dialog.dismiss();
-      }
-    });
+    // Set up tab listeners for the initial page
+    setupTabListeners(activeTabId, page);
   }
 
   attachEventListeners();
@@ -276,9 +302,21 @@ export async function startSession(options: SessionOptions = {}): Promise<Sessio
           break;
 
         case 'screenshot': {
-          const buffer = await page.screenshot({
-            fullPage: params.fullPage as boolean,
-          });
+          let buffer: Buffer;
+          if (params.selector) {
+            // Element screenshot
+            const element = await currentFrame.locator(params.selector as string).first();
+            buffer = await element.screenshot();
+          } else {
+            // Viewport/region screenshot — clip takes precedence over fullPage
+            const clip = params.clip as
+              | { x: number; y: number; width: number; height: number }
+              | undefined;
+            buffer = await page.screenshot({
+              fullPage: clip ? undefined : (params.fullPage as boolean),
+              clip,
+            });
+          }
           result = buffer.toString('base64');
           break;
         }
@@ -639,6 +677,87 @@ export async function startSession(options: SessionOptions = {}): Promise<Sessio
           break;
         }
 
+        case 'newTab': {
+          const newPage = await context.newPage();
+          const tabId = String(++tabCounter);
+          tabs.set(tabId, newPage);
+          setupTabListeners(tabId, newPage);
+
+          // Switch to new tab
+          page = newPage;
+          activeTabId = tabId;
+          currentFrame = page;
+          cursor = createCursor(page);
+
+          // Navigate if URL provided
+          if (params.url) {
+            await page.goto(params.url as string);
+          }
+
+          result = { tabId };
+          break;
+        }
+
+        case 'switchTab': {
+          const tabId = params.tabId as string;
+          const targetPage = tabs.get(tabId);
+          if (!targetPage) {
+            throw new Error(
+              `Tab ${tabId} not found. Open tabs: ${Array.from(tabs.keys()).join(', ')}`
+            );
+          }
+          page = targetPage;
+          activeTabId = tabId;
+          currentFrame = page;
+          cursor = createCursor(page);
+          await page.bringToFront();
+          result = { tabId, url: page.url() };
+          break;
+        }
+
+        case 'closeTab': {
+          const tabId = (params.tabId as string) || activeTabId;
+          const targetPage = tabs.get(tabId);
+          if (!targetPage) {
+            throw new Error(`Tab ${tabId} not found`);
+          }
+          if (tabs.size === 1) {
+            throw new Error('Cannot close the last tab');
+          }
+
+          intentionalCloses.add(tabId);
+          await targetPage.close();
+          tabs.delete(tabId);
+
+          // If we closed the active tab, switch to another
+          if (tabId === activeTabId) {
+            const remaining = Array.from(tabs.entries());
+            const [newActiveId, newActivePage] = remaining[remaining.length - 1];
+            page = newActivePage;
+            activeTabId = newActiveId;
+            currentFrame = page;
+            cursor = createCursor(page);
+            await page.bringToFront();
+          }
+
+          result = { closed: tabId, activeTab: activeTabId };
+          break;
+        }
+
+        case 'listTabs': {
+          const tabList = [];
+          for (const [tabId, tabPage] of tabs) {
+            tabList.push({
+              id: tabId,
+              url: tabPage.url(),
+              title: await tabPage.title(),
+              active: tabId === activeTabId,
+            });
+          }
+          result = tabList;
+          break;
+        }
+
         case 'getVideoPath': {
           if (!videoEnabled) {
             result = { enabled: false, path: null };
@@ -872,6 +991,13 @@ export async function startSession(options: SessionOptions = {}): Promise<Sessio
       dialogAction = 'accept';
       lastDialogMessage = '';
       currentFrame = page;
+
+      // Reset tab state
+      tabs.clear();
+      tabCounter = 0;
+      activeTabId = String(++tabCounter);
+      tabs.set(activeTabId, page);
+      intentionalCloses.clear();
 
       // Reattach event listeners
       attachEventListeners();

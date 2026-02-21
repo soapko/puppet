@@ -56,124 +56,140 @@ const CURSOR_STYLES = `
 `;
 
 // JavaScript to inject into the page
+// Self-healing: uses DOM lookups instead of closure refs so it survives SPA re-renders
 const CURSOR_SCRIPT = `
 (function() {
-  // Prevent double initialization
-  if (window.__puppetCursorInitialized__) return;
-  window.__puppetCursorInitialized__ = true;
-
-  function initCursor() {
-    // Skip if already added
-    if (document.getElementById('__puppet_cursor__')) return;
+  function ensureCursor() {
+    // Remove orphaned elements first
+    var existing = document.getElementById('__puppet_cursor__');
+    if (existing) existing.remove();
+    var existingInd = document.getElementById('__puppet_cursor_click_indicator__');
+    if (existingInd) existingInd.remove();
 
     // Create cursor element
-    const cursor = document.createElement('div');
+    var cursor = document.createElement('div');
     cursor.id = '__puppet_cursor__';
     cursor.innerHTML = \`${CURSOR_SVG}\`;
 
     // Create click indicator
-    const clickIndicator = document.createElement('div');
+    var clickIndicator = document.createElement('div');
     clickIndicator.id = '__puppet_cursor_click_indicator__';
 
-    // Add styles
-    const style = document.createElement('style');
-    style.id = '__puppet_cursor_styles__';
-    style.textContent = \`${CURSOR_STYLES}\`;
-
-    // Append to document
-    if (document.head) {
-      document.head.appendChild(style);
-    } else {
-      document.documentElement.appendChild(style);
+    // Add styles (only once per document)
+    if (!document.getElementById('__puppet_cursor_styles__')) {
+      var style = document.createElement('style');
+      style.id = '__puppet_cursor_styles__';
+      style.textContent = \`${CURSOR_STYLES}\`;
+      (document.head || document.documentElement).appendChild(style);
     }
 
-    if (document.body) {
-      document.body.appendChild(cursor);
-      document.body.appendChild(clickIndicator);
-    } else {
-      document.documentElement.appendChild(cursor);
-      document.documentElement.appendChild(clickIndicator);
+    // Append to body
+    var container = document.body || document.documentElement;
+    container.appendChild(cursor);
+    container.appendChild(clickIndicator);
+
+    // Restore last known position
+    var cx = window.__puppetCursorX__ || 100;
+    var cy = window.__puppetCursorY__ || 100;
+    cursor.style.left = cx + 'px';
+    cursor.style.top = cy + 'px';
+
+    // Hide native cursor (only once per document)
+    if (!document.getElementById('__puppet_cursor_hide__')) {
+      var hideStyle = document.createElement('style');
+      hideStyle.id = '__puppet_cursor_hide__';
+      hideStyle.textContent = '* { cursor: none !important; }';
+      (document.head || document.documentElement).appendChild(hideStyle);
+      if (document.body) document.body.style.cursor = 'none';
+      document.documentElement.style.cursor = 'none';
     }
-
-    // Track current position
-    let cursorX = 100;
-    let cursorY = 100;
-
-    // Set initial position
-    cursor.style.left = cursorX + 'px';
-    cursor.style.top = cursorY + 'px';
-
-    // Update cursor position on mouse move
-    document.addEventListener('mousemove', (e) => {
-      cursorX = e.clientX;
-      cursorY = e.clientY;
-      cursor.style.left = cursorX + 'px';
-      cursor.style.top = cursorY + 'px';
-    }, true);
-
-    // Show click effect
-    document.addEventListener('mousedown', (e) => {
-      cursor.classList.add('clicking');
-      clickIndicator.style.left = e.clientX + 'px';
-      clickIndicator.style.top = e.clientY + 'px';
-      clickIndicator.classList.remove('active');
-      // Trigger reflow to restart animation
-      void clickIndicator.offsetWidth;
-      clickIndicator.classList.add('active');
-    }, true);
-
-    document.addEventListener('mouseup', () => {
-      cursor.classList.remove('clicking');
-    }, true);
-
-    // Expose function to update cursor position programmatically
-    window.__puppetMoveCursor__ = (x, y) => {
-      cursorX = x;
-      cursorY = y;
-      cursor.style.left = x + 'px';
-      cursor.style.top = y + 'px';
-    };
-
-    // Expose function to trigger click effect
-    window.__puppetClickEffect__ = (x, y) => {
-      cursor.classList.add('clicking');
-      clickIndicator.style.left = x + 'px';
-      clickIndicator.style.top = y + 'px';
-      clickIndicator.classList.remove('active');
-      void clickIndicator.offsetWidth;
-      clickIndicator.classList.add('active');
-      setTimeout(() => cursor.classList.remove('clicking'), 100);
-    };
-
-    // Hide native cursor
-    if (document.body) {
-      document.body.style.cursor = 'none';
-    }
-    document.documentElement.style.cursor = 'none';
-
-    // Also hide cursor on all elements
-    const hideCursorStyle = document.createElement('style');
-    hideCursorStyle.textContent = '* { cursor: none !important; }';
-    if (document.head) {
-      document.head.appendChild(hideCursorStyle);
-    } else {
-      document.documentElement.appendChild(hideCursorStyle);
-    }
-
-    console.log('[puppet] Visual cursor initialized');
   }
 
-  // Try to initialize immediately
+  // Helper: get cursor element, re-create if detached/missing
+  function getCursor() {
+    var el = document.getElementById('__puppet_cursor__');
+    if (el && document.body && document.body.contains(el)) return el;
+    ensureCursor();
+    return document.getElementById('__puppet_cursor__');
+  }
+
+  function getClickIndicator() {
+    return document.getElementById('__puppet_cursor_click_indicator__');
+  }
+
+  function initCursor() {
+    ensureCursor();
+
+    // Attach event listeners only once per window
+    if (!window.__puppetCursorListeners__) {
+      document.addEventListener('mousemove', function(e) {
+        window.__puppetCursorX__ = e.clientX;
+        window.__puppetCursorY__ = e.clientY;
+        var el = document.getElementById('__puppet_cursor__');
+        if (el) {
+          el.style.left = e.clientX + 'px';
+          el.style.top = e.clientY + 'px';
+        }
+      }, true);
+
+      document.addEventListener('mousedown', function(e) {
+        var el = document.getElementById('__puppet_cursor__');
+        var ind = document.getElementById('__puppet_cursor_click_indicator__');
+        if (el) el.classList.add('clicking');
+        if (ind) {
+          ind.style.left = e.clientX + 'px';
+          ind.style.top = e.clientY + 'px';
+          ind.classList.remove('active');
+          void ind.offsetWidth;
+          ind.classList.add('active');
+        }
+      }, true);
+
+      document.addEventListener('mouseup', function() {
+        var el = document.getElementById('__puppet_cursor__');
+        if (el) el.classList.remove('clicking');
+      }, true);
+
+      window.__puppetCursorListeners__ = true;
+    }
+
+    // Self-healing move: re-creates cursor if it was removed by SPA framework
+    window.__puppetMoveCursor__ = function(x, y) {
+      window.__puppetCursorX__ = x;
+      window.__puppetCursorY__ = y;
+      var el = getCursor();
+      if (el) {
+        el.style.left = x + 'px';
+        el.style.top = y + 'px';
+      }
+    };
+
+    // Self-healing click effect
+    window.__puppetClickEffect__ = function(x, y) {
+      var el = getCursor();
+      var ind = getClickIndicator();
+      if (el) el.classList.add('clicking');
+      if (ind) {
+        ind.style.left = x + 'px';
+        ind.style.top = y + 'px';
+        ind.classList.remove('active');
+        void ind.offsetWidth;
+        ind.classList.add('active');
+      }
+      setTimeout(function() {
+        var c = document.getElementById('__puppet_cursor__');
+        if (c) c.classList.remove('clicking');
+      }, 100);
+    };
+  }
+
+  // Initialize
   if (document.body) {
     initCursor();
+  } else if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initCursor);
   } else {
-    // Wait for DOM to be ready
-    if (document.readyState === 'loading') {
-      document.addEventListener('DOMContentLoaded', initCursor);
-    } else {
-      // Fallback: use requestAnimationFrame
-      requestAnimationFrame(initCursor);
-    }
+    requestAnimationFrame(initCursor);
   }
 })();
 `;

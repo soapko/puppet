@@ -179,11 +179,20 @@ async function handleRequest(req: http.IncomingMessage) {
           },
         });
 
-      case '/screenshot':
-        return sendCommand({
-          action: 'screenshot',
-          params: { path: params.path, fullPage: params.fullPage === 'true' },
-        });
+      case '/screenshot': {
+        const ssParams: Record<string, unknown> = {
+          path: params.path,
+          fullPage: params.fullPage === 'true',
+        };
+        if (params.selector) ssParams.selector = params.selector;
+        if (params.clip) {
+          const parts = (params.clip as string).split(',').map(Number);
+          if (parts.length === 4 && parts.every(n => !isNaN(n))) {
+            ssParams.clip = { x: parts[0], y: parts[1], width: parts[2], height: parts[3] };
+          }
+        }
+        return sendCommand({ action: 'screenshot', params: ssParams });
+      }
 
       case '/url':
         return sendCommand({ action: 'getUrl' });

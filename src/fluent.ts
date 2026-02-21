@@ -6,7 +6,7 @@
 
 import { resolveSelector } from './selectors.js';
 import { startSession, sendCommand } from './session.js';
-import type { CommandAction, SessionOptions, CommandResult, Session } from './types.js';
+import type { CommandAction, SessionOptions, CommandResult, Session, TabInfo } from './types.js';
 
 /**
  * Browser class providing fluent API for browser automation
@@ -136,13 +136,24 @@ export class Browser {
    * @param options - Optional path to save screenshot, or options object
    * @returns Base64-encoded screenshot
    */
-  async screenshot(options?: string | { path?: string; fullPage?: boolean }): Promise<string> {
+  async screenshot(
+    options?:
+      | string
+      | {
+          path?: string;
+          fullPage?: boolean;
+          clip?: { x: number; y: number; width: number; height: number };
+          selector?: string;
+        }
+  ): Promise<string> {
     const params: Record<string, unknown> = {};
     if (typeof options === 'string') {
       params.path = options;
     } else if (options) {
       if (options.path) params.path = options.path;
       if (options.fullPage) params.fullPage = options.fullPage;
+      if (options.clip) params.clip = options.clip;
+      if (options.selector) params.selector = resolveSelector(options.selector);
     }
     const result = await this.send('screenshot', params);
     return result.result as string;
@@ -410,6 +421,45 @@ export class Browser {
    */
   async assertCount(selector: string, count: number): Promise<void> {
     await this.send('assertCount', { selector: resolveSelector(selector), count });
+  }
+
+  /**
+   * Open a new browser tab
+   * @param url - Optional URL to navigate to in the new tab
+   * @returns Tab ID for switching/closing
+   */
+  async newTab(url?: string): Promise<string> {
+    const params: Record<string, unknown> = {};
+    if (url) params.url = url;
+    const result = await this.send('newTab', params);
+    return (result.result as { tabId: string }).tabId;
+  }
+
+  /**
+   * Switch to a different browser tab
+   * @param tabId - ID of the tab to switch to
+   */
+  async switchTab(tabId: string): Promise<void> {
+    await this.send('switchTab', { tabId });
+  }
+
+  /**
+   * Close a browser tab
+   * @param tabId - ID of the tab to close (defaults to active tab)
+   */
+  async closeTab(tabId?: string): Promise<void> {
+    const params: Record<string, unknown> = {};
+    if (tabId) params.tabId = tabId;
+    await this.send('closeTab', params);
+  }
+
+  /**
+   * List all open browser tabs
+   * @returns Array of tab info objects
+   */
+  async listTabs(): Promise<TabInfo[]> {
+    const result = await this.send('listTabs', {});
+    return result.result as TabInfo[];
   }
 
   /**

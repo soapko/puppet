@@ -97,7 +97,11 @@ export type CommandAction =
   | 'assertUrl'
   | 'assertTitle'
   | 'assertCount'
-  | 'getVideoPath';
+  | 'getVideoPath'
+  | 'newTab'
+  | 'switchTab'
+  | 'closeTab'
+  | 'listTabs';
 
 export interface Command {
   id: string;
@@ -138,6 +142,13 @@ export interface Session {
   restart(): Promise<void>;
   /** Send a command directly to the session (bypasses file IPC) */
   command(cmd: Omit<Command, 'id'>): Promise<CommandResult>;
+}
+
+export interface TabInfo {
+  id: string;
+  url: string;
+  title: string;
+  active: boolean;
 }
 
 // Re-export Playwright types for convenience

@@ -443,6 +443,18 @@ await page.click('slow-button', {
 // Take screenshot at any point
 await page.screenshot('./debug.png');
 
+// Element screenshot — captures just one component
+await page.screenshot({ selector: 'error-message', path: './error.png' });
+
+// Region screenshot — clip a viewport-relative area
+await page.screenshot({
+  clip: { x: 0, y: 0, width: 800, height: 400 },
+  path: './top-region.png',
+});
+
+// Full page screenshot
+await page.screenshot({ path: './full.png', fullPage: true });
+
 // Get current state
 const url = await page.url();
 const title = await page.title();

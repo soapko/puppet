@@ -148,38 +148,38 @@ console.log(testid('submit')); // '[data-testid="submit"]'
 
 ### Browser Methods
 
-| Method                            | Description                     |
-| --------------------------------- | ------------------------------- |
-| `goto(url)`                       | Navigate to URL                 |
-| `click(selector)`                 | Click element                   |
-| `drag(source, target)`            | Drag element to target          |
-| `dragCoordinates(sx, sy, tx, ty)` | Drag by pixel coordinates       |
-| `type(selector, text)`            | Type text into input            |
-| `clear(selector)`                 | Clear input field               |
-| `text(selector)`                  | Get element text content        |
-| `value(selector)`                 | Get input value                 |
-| `html(selector?)`                 | Get HTML (element or full page) |
-| `screenshot(path?)`               | Take screenshot                 |
-| `select(selector, value)`         | Select dropdown option          |
-| `check(selector)`                 | Check checkbox                  |
-| `uncheck(selector)`               | Uncheck checkbox                |
-| `hover(selector)`                 | Hover over element              |
-| `scroll(direction, amount)`       | Scroll page                     |
-| `wait(ms)`                        | Wait for milliseconds           |
-| `waitFor(selector, timeout?)`     | Wait for element                |
-| `waitForLoaded(timeout?)`         | Wait for loading to complete    |
-| `evaluate(script)`                | Execute JavaScript              |
-| `upload(selector, path)`          | Upload file(s)                  |
-| `frame(selector)`                 | Switch to iframe                |
-| `mainFrame()`                     | Switch to main frame            |
-| `url()`                           | Get current URL                 |
-| `title()`                         | Get page title                  |
-| `clearState()`                    | Clear cookies/storage           |
-| `setDialogAction(action)`         | Set dialog behavior             |
-| `getLastDialog()`                 | Get last dialog message         |
-| `close()`                         | Close browser                   |
-| `isRunning()`                     | Check if browser is running     |
-| `restart()`                       | Restart browser session         |
+| Method                            | Description                                    |
+| --------------------------------- | ---------------------------------------------- |
+| `goto(url)`                       | Navigate to URL                                |
+| `click(selector)`                 | Click element                                  |
+| `drag(source, target)`            | Drag element to target                         |
+| `dragCoordinates(sx, sy, tx, ty)` | Drag by pixel coordinates                      |
+| `type(selector, text)`            | Type text into input                           |
+| `clear(selector)`                 | Clear input field                              |
+| `text(selector)`                  | Get element text content                       |
+| `value(selector)`                 | Get input value                                |
+| `html(selector?)`                 | Get HTML (element or full page)                |
+| `screenshot(path?, options?)`     | Take screenshot (viewport, element, or region) |
+| `select(selector, value)`         | Select dropdown option                         |
+| `check(selector)`                 | Check checkbox                                 |
+| `uncheck(selector)`               | Uncheck checkbox                               |
+| `hover(selector)`                 | Hover over element                             |
+| `scroll(direction, amount)`       | Scroll page                                    |
+| `wait(ms)`                        | Wait for milliseconds                          |
+| `waitFor(selector, timeout?)`     | Wait for element                               |
+| `waitForLoaded(timeout?)`         | Wait for loading to complete                   |
+| `evaluate(script)`                | Execute JavaScript                             |
+| `upload(selector, path)`          | Upload file(s)                                 |
+| `frame(selector)`                 | Switch to iframe                               |
+| `mainFrame()`                     | Switch to main frame                           |
+| `url()`                           | Get current URL                                |
+| `title()`                         | Get page title                                 |
+| `clearState()`                    | Clear cookies/storage                          |
+| `setDialogAction(action)`         | Set dialog behavior                            |
+| `getLastDialog()`                 | Get last dialog message                        |
+| `close()`                         | Close browser                                  |
+| `isRunning()`                     | Check if browser is running                    |
+| `restart()`                       | Restart browser session                        |
 
 ### Assertions
 
@@ -198,6 +198,32 @@ Built-in assertions verify page state and throw descriptive errors on failure:
 | `assertUrl(expected, exact?)`            | Assert current URL matches              |
 | `assertTitle(expected, exact?)`          | Assert page title matches               |
 | `assertCount(selector, count)`           | Assert number of matching elements      |
+
+### Screenshots
+
+Take viewport, full-page, element, or region screenshots:
+
+```javascript
+// Viewport screenshot (default)
+await browser.screenshot('./shot.png');
+
+// Full page screenshot
+await browser.screenshot({ path: './full.png', fullPage: true });
+
+// Element screenshot — captures just the element, auto-scrolls if needed
+await browser.screenshot({ selector: 'product-card', path: './card.png' });
+
+// Region screenshot — clip to viewport-relative coordinates
+await browser.screenshot({
+  clip: { x: 100, y: 200, width: 400, height: 300 },
+  path: './region.png',
+});
+
+// Without path — returns base64 string
+const base64 = await browser.screenshot({ selector: '#chart' });
+```
+
+> **Note:** `clip` and `fullPage` are mutually exclusive. If both are provided, `clip` takes precedence.
 
 For detailed examples and patterns, see **[Writing Tests with Puppet](docs/writing-tests-with-puppet.md)**.
 
@@ -252,23 +278,23 @@ const server = await serve({
 
 ### API Endpoints
 
-| Endpoint         | Method | Params                       | Description                     |
-| ---------------- | ------ | ---------------------------- | ------------------------------- |
-| `/command`       | POST   | JSON body with action/params | Execute any command             |
-| `/goto`          | GET    | `url`                        | Navigate to URL                 |
-| `/click`         | GET    | `selector` or `testid`       | Click element                   |
-| `/type`          | GET    | `selector`, `text`           | Type text into element          |
-| `/text`          | GET    | `selector`                   | Get element text content        |
-| `/value`         | GET    | `selector`                   | Get input value                 |
-| `/screenshot`    | GET    | `path?`, `fullPage?`         | Take screenshot                 |
-| `/url`           | GET    | -                            | Get current URL                 |
-| `/title`         | GET    | -                            | Get page title                  |
-| `/wait`          | GET    | `selector`, `timeout?`       | Wait for element                |
-| `/waitForLoaded` | GET    | `timeout?`                   | Wait for page to finish loading |
-| `/clear`         | GET    | `selector`                   | Clear input field               |
-| `/clearState`    | GET    | `includeIndexedDB?`          | Clear cookies/storage           |
-| `/health`        | GET    | -                            | Health check                    |
-| `/close`         | GET    | -                            | Close browser and server        |
+| Endpoint         | Method | Params                                     | Description                                    |
+| ---------------- | ------ | ------------------------------------------ | ---------------------------------------------- |
+| `/command`       | POST   | JSON body with action/params               | Execute any command                            |
+| `/goto`          | GET    | `url`                                      | Navigate to URL                                |
+| `/click`         | GET    | `selector` or `testid`                     | Click element                                  |
+| `/type`          | GET    | `selector`, `text`                         | Type text into element                         |
+| `/text`          | GET    | `selector`                                 | Get element text content                       |
+| `/value`         | GET    | `selector`                                 | Get input value                                |
+| `/screenshot`    | GET    | `path?`, `fullPage?`, `selector?`, `clip?` | Take screenshot (viewport, element, or region) |
+| `/url`           | GET    | -                                          | Get current URL                                |
+| `/title`         | GET    | -                                          | Get page title                                 |
+| `/wait`          | GET    | `selector`, `timeout?`                     | Wait for element                               |
+| `/waitForLoaded` | GET    | `timeout?`                                 | Wait for page to finish loading                |
+| `/clear`         | GET    | `selector`                                 | Clear input field                              |
+| `/clearState`    | GET    | `includeIndexedDB?`                        | Clear cookies/storage                          |
+| `/health`        | GET    | -                                          | Health check                                   |
+| `/close`         | GET    | -                                          | Close browser and server                       |
 
 ### Usage with curl
 
@@ -288,8 +314,14 @@ curl "http://localhost:3000/type?selector=%23email&text=test@example.com"
 # Get text content
 curl "http://localhost:3000/text?selector=h1"
 
-# Screenshot
+# Screenshot (viewport)
 curl "http://localhost:3000/screenshot?path=./shot.png"
+
+# Screenshot of a specific element
+curl "http://localhost:3000/screenshot?selector=%5Bdata-testid%3D%22card%22%5D"
+
+# Screenshot of a region (x,y,width,height)
+curl "http://localhost:3000/screenshot?clip=100,200,400,300"
 
 # Any command via POST
 curl -X POST http://localhost:3000/command \
@@ -669,7 +701,7 @@ puppet>
 | `html [selector]` | Get HTML (element or full page) |
 | `url` | Get current URL |
 | `title` | Get page title |
-| `screenshot [path]` | Take screenshot |
+| `screenshot [path] [opts]` | Take screenshot (viewport, element, or region) |
 
 **Waiting:**
 | Command | Description |
@@ -724,6 +756,15 @@ Example Domain
 
 puppet> screenshot ./debug.png
 Screenshot saved: ./debug.png
+
+puppet> screenshot --selector h1 ./heading.png
+Screenshot saved: ./heading.png
+
+puppet> screenshot --clip 100,200,400,300 ./region.png
+Screenshot saved: ./region.png
+
+puppet> screenshot --fullpage ./full.png
+Screenshot saved: ./full.png
 
 puppet> drag task-1 done-column
 Dragged task-1 to done-column
@@ -1064,41 +1105,41 @@ cat ~/.puppet/results.json
 
 ### Available Commands
 
-| Action            | Params                                       | Description                                      |
-| ----------------- | -------------------------------------------- | ------------------------------------------------ |
-| `goto`            | `url`                                        | Navigate to URL                                  |
-| `click`           | `selector`, `retry?`                         | Click element with human-like cursor             |
-| `drag`            | `sourceSelector`, `targetSelector`, `retry?` | Drag element to target                           |
-| `dragCoordinates` | `sourceX`, `sourceY`, `targetX`, `targetY`   | Drag by pixel coordinates (for captchas, canvas) |
-| `type`            | `selector`, `text`, `retry?`                 | Type text into input field                       |
-| `clear`           | `selector`                                   | Clear input field                                |
-| `scroll`          | `direction` (`up`/`down`), `amount`          | Scroll page                                      |
-| `screenshot`      | `fullPage` (boolean)                         | Capture screenshot, returns base64               |
-| `evaluate`        | `script`                                     | Execute JavaScript, returns result               |
-| `waitFor`         | `selector`, `timeout?`, `retry?`             | Wait for element to appear                       |
-| `waitForLoaded`   | `selectors?`, `timeout?`, `waitForNetwork?`  | Wait for loading indicators to disappear         |
-| `getUrl`          | -                                            | Get current page URL                             |
-| `getTitle`        | -                                            | Get page title                                   |
-| `setDialogAction` | `action` (`accept`/`dismiss`)                | Set behavior for alert/confirm dialogs           |
-| `getLastDialog`   | -                                            | Get message from last dialog                     |
-| `clearState`      | `includeIndexedDB?`                          | Clear cookies, localStorage, sessionStorage      |
-| `uploadFile`      | `selector`, `filePath`                       | Upload file(s) to file input                     |
-| `switchToFrame`   | `selector`                                   | Switch context into an iframe                    |
-| `switchToMain`    | -                                            | Switch back to main page context                 |
-| `getFrames`       | -                                            | List all frames on the page                      |
-| `assertVisible`   | `selector`                                   | Assert element is visible                        |
-| `assertHidden`    | `selector`                                   | Assert element is hidden                         |
-| `assertText`      | `selector`, `expected`, `exact?`             | Assert text content matches                      |
-| `assertValue`     | `selector`, `expected`                       | Assert input value matches                       |
-| `assertChecked`   | `selector`                                   | Assert checkbox is checked                       |
-| `assertUnchecked` | `selector`                                   | Assert checkbox is unchecked                     |
-| `assertEnabled`   | `selector`                                   | Assert element is enabled                        |
-| `assertDisabled`  | `selector`                                   | Assert element is disabled                       |
-| `assertUrl`       | `expected`, `exact?`                         | Assert current URL matches                       |
-| `assertTitle`     | `expected`, `exact?`                         | Assert page title matches                        |
-| `assertCount`     | `selector`, `count`                          | Assert number of matching elements               |
-| `init` / `noop`   | -                                            | No-op, useful for testing connection             |
-| `close`           | -                                            | Close the session                                |
+| Action            | Params                                       | Description                                       |
+| ----------------- | -------------------------------------------- | ------------------------------------------------- |
+| `goto`            | `url`                                        | Navigate to URL                                   |
+| `click`           | `selector`, `retry?`                         | Click element with human-like cursor              |
+| `drag`            | `sourceSelector`, `targetSelector`, `retry?` | Drag element to target                            |
+| `dragCoordinates` | `sourceX`, `sourceY`, `targetX`, `targetY`   | Drag by pixel coordinates (for captchas, canvas)  |
+| `type`            | `selector`, `text`, `retry?`                 | Type text into input field                        |
+| `clear`           | `selector`                                   | Clear input field                                 |
+| `scroll`          | `direction` (`up`/`down`), `amount`          | Scroll page                                       |
+| `screenshot`      | `fullPage?`, `selector?`, `clip?`            | Capture screenshot (viewport, element, or region) |
+| `evaluate`        | `script`                                     | Execute JavaScript, returns result                |
+| `waitFor`         | `selector`, `timeout?`, `retry?`             | Wait for element to appear                        |
+| `waitForLoaded`   | `selectors?`, `timeout?`, `waitForNetwork?`  | Wait for loading indicators to disappear          |
+| `getUrl`          | -                                            | Get current page URL                              |
+| `getTitle`        | -                                            | Get page title                                    |
+| `setDialogAction` | `action` (`accept`/`dismiss`)                | Set behavior for alert/confirm dialogs            |
+| `getLastDialog`   | -                                            | Get message from last dialog                      |
+| `clearState`      | `includeIndexedDB?`                          | Clear cookies, localStorage, sessionStorage       |
+| `uploadFile`      | `selector`, `filePath`                       | Upload file(s) to file input                      |
+| `switchToFrame`   | `selector`                                   | Switch context into an iframe                     |
+| `switchToMain`    | -                                            | Switch back to main page context                  |
+| `getFrames`       | -                                            | List all frames on the page                       |
+| `assertVisible`   | `selector`                                   | Assert element is visible                         |
+| `assertHidden`    | `selector`                                   | Assert element is hidden                          |
+| `assertText`      | `selector`, `expected`, `exact?`             | Assert text content matches                       |
+| `assertValue`     | `selector`, `expected`                       | Assert input value matches                        |
+| `assertChecked`   | `selector`                                   | Assert checkbox is checked                        |
+| `assertUnchecked` | `selector`                                   | Assert checkbox is unchecked                      |
+| `assertEnabled`   | `selector`                                   | Assert element is enabled                         |
+| `assertDisabled`  | `selector`                                   | Assert element is disabled                        |
+| `assertUrl`       | `expected`, `exact?`                         | Assert current URL matches                        |
+| `assertTitle`     | `expected`, `exact?`                         | Assert page title matches                         |
+| `assertCount`     | `selector`, `count`                          | Assert number of matching elements                |
+| `init` / `noop`   | -                                            | No-op, useful for testing connection              |
+| `close`           | -                                            | Close the session                                 |
 
 ### Command/Result Format
 
@@ -1299,6 +1340,15 @@ import { sendCommand } from 'puppet';
 
 await sendCommand({ action: 'goto', params: { url: 'https://news.ycombinator.com' } });
 await sendCommand({ action: 'screenshot', params: { fullPage: false } });
+
+// Element screenshot
+await sendCommand({ action: 'screenshot', params: { selector: '#hnmain' } });
+
+// Region screenshot
+await sendCommand({
+  action: 'screenshot',
+  params: { clip: { x: 0, y: 0, width: 800, height: 400 } },
+});
 
 const title = await sendCommand({ action: 'getTitle' });
 console.log('Page title:', title.result);

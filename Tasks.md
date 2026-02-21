@@ -45,6 +45,10 @@
 
 - [✅] Coordinate-based drag for captchas and non-selectable elements -> [002.feature.21-coordinate-based-drag.md](docs/tasks/archive/002.feature.21-coordinate-based-drag.md)
 
+### Screenshot Enhancements
+
+- [✅] Region and element screenshot capture -> [002.feature.22-region-screenshot.md](docs/tasks/002.feature.22-region-screenshot.md)
+
 ## 003.bugfix
 
 - [✅] Fix session lifecycle and error recovery -> [003.bugfix.01-session-lifecycle.md](docs/tasks/003.bugfix.01-session-lifecycle.md)

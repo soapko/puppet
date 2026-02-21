@@ -476,3 +476,62 @@ export default defineConfig({
   screenshotOnFailure: true,
 });
 ```
+
+---
+
+## Region and Element Screenshot Capture
+
+**Implemented:** 2026-02-20
+
+Capture screenshots of specific regions or individual elements, not just the full viewport.
+
+### Files
+
+- `src/session.ts` - Screenshot command handler (clip + selector support)
+- `src/fluent.ts` - Fluent API `screenshot()` method with extended options
+- `src/repl.ts` - REPL `screenshot` command with `--clip`, `--selector`, `--fullpage` flags
+- `src/server.ts` - HTTP `/screenshot` endpoint with `clip` and `selector` query params
+
+### Usage
+
+```typescript
+import { withBrowser } from 'puppet';
+
+await withBrowser(async browser => {
+  // Full viewport (existing)
+  const png = await browser.screenshot();
+
+  // Region clip (viewport-relative)
+  const region = await browser.screenshot({
+    clip: { x: 100, y: 200, width: 400, height: 300 },
+  });
+
+  // Element screenshot (auto-scrolls to element)
+  const element = await browser.screenshot({ selector: 'product-card' });
+
+  // Save element screenshot to file
+  await browser.screenshot({ selector: '#chart', path: './chart.png' });
+});
+```
+
+### REPL
+
+```
+screenshot --clip 100,200,400,300
+screenshot --selector product-card
+screenshot --selector h1 ./heading.png
+screenshot --fullpage ./full.png
+```
+
+### HTTP
+
+```
+GET /screenshot?clip=100,200,400,300
+GET /screenshot?selector=[data-testid="card"]
+```
+
+### Notes
+
+- `clip` and `fullPage` are mutually exclusive — if both provided, `clip` takes precedence
+- `clip` coordinates are viewport-relative, not page-relative
+- Element screenshots auto-scroll to the element if needed

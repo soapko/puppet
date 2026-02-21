@@ -57,6 +57,7 @@ export type {
   CommandResult,
   Session,
   RetryOptions,
+  TabInfo,
   // Playwright types available via 'playwright' import if needed
   BrowserContext,
   Page,

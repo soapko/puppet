@@ -211,12 +211,28 @@ async function executeReplCommand(input: string): Promise<unknown> {
 
     case 'screenshot':
     case 'ss': {
-      const result = await sendCommand({
-        action: 'screenshot',
-        params: args[0] ? { path: args[0] } : {},
-      });
-      return args[0]
-        ? `Screenshot saved: ${args[0]}`
+      const ssParams: Record<string, unknown> = {};
+      let ssPath: string | undefined;
+      for (let i = 0; i < args.length; i++) {
+        if (args[i] === '--clip' && args[i + 1]) {
+          const parts = args[i + 1].split(',').map(Number);
+          if (parts.length !== 4 || parts.some(isNaN))
+            throw new Error('Usage: screenshot --clip x,y,w,h');
+          ssParams.clip = { x: parts[0], y: parts[1], width: parts[2], height: parts[3] };
+          i++;
+        } else if (args[i] === '--selector' && args[i + 1]) {
+          ssParams.selector = resolveSelector(args[i + 1]);
+          i++;
+        } else if (args[i] === '--fullpage') {
+          ssParams.fullPage = true;
+        } else {
+          ssPath = args[i];
+        }
+      }
+      if (ssPath) ssParams.path = ssPath;
+      const result = await sendCommand({ action: 'screenshot', params: ssParams });
+      return ssPath
+        ? `Screenshot saved: ${ssPath}`
         : `Screenshot: ${(result.result as string).slice(0, 50)}...`;
     }
 
@@ -391,7 +407,10 @@ INSPECTION
   html [sel]              Get HTML (element or full page)
   url                     Get current URL
   title                   Get page title
-  screenshot [path]       Take screenshot (alias: ss)
+  screenshot [path] [opts] Take screenshot (alias: ss)
+    --clip x,y,w,h          Capture a region
+    --selector <sel>        Capture a specific element
+    --fullpage              Capture full page
 
 JAVASCRIPT
   eval <code>             Execute JavaScript (alias: js)
