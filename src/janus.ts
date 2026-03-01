@@ -51,6 +51,8 @@ export async function janusTab(options: JanusOptions): Promise<Browser> {
     throw new Error(`Failed to create Janus tab: ${res.status} ${res.statusText}`);
   }
 
+  const { tabId } = await res.json();
+
   // Small delay to let the webview initialize and become discoverable via CDP
   await new Promise(r => setTimeout(r, 1000));
 
@@ -61,6 +63,9 @@ export async function janusTab(options: JanusOptions): Promise<Browser> {
     cdp: cdpUrl,
     cdpPageUrl: options.url,
   });
+
+  // Attach the Janus tab ID so callers can use janusCloseTab(browser.tabId)
+  (browser as Browser & { tabId: number }).tabId = tabId;
 
   return browser;
 }
@@ -73,7 +78,8 @@ export async function janusListTabs(apiUrl = JANUS_API): Promise<JanusTab[]> {
   if (!res.ok) {
     throw new Error(`Failed to list Janus tabs: ${res.status} ${res.statusText}`);
   }
-  return res.json();
+  const tabs: Array<{ tabId: number; url: string; title?: string }> = await res.json();
+  return tabs.map(t => ({ id: t.tabId, url: t.url, title: t.title }));
 }
 
 /**
