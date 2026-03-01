@@ -3,7 +3,7 @@ import type { Browser, BrowserContext, Page } from 'playwright';
 
 import { startCDPProxy, type CDPProxy } from './cdp-proxy.js';
 import type { BrowserOptions, BrowserInstance, VideoOptions } from './types.js';
-import { setupVisualCursor } from './visual-cursor.js';
+import { setupVisualCursor, setupVisualCursorCDP } from './visual-cursor.js';
 
 /** Default viewport mimicking common desktop resolution */
 const DEFAULT_VIEWPORT = { width: 1440, height: 900 };
@@ -164,6 +164,13 @@ export async function connectCDP(
     page = match || pages[0] || (await context.newPage());
   } else {
     page = pages[0] || (await context.newPage());
+  }
+
+  // Set up visual cursor via CDP session (persists across navigations)
+  // Uses Page.addScriptToEvaluateOnNewDocument — works on reused CDP contexts
+  // where context.addInitScript() does not
+  if (options.showCursor) {
+    await setupVisualCursorCDP(page);
   }
 
   // No video recording for CDP connections (Playwright limitation)

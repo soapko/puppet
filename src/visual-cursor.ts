@@ -210,6 +210,23 @@ export async function setupVisualCursor(context: BrowserContext): Promise<void> 
 }
 
 /**
+ * Set up visual cursor for CDP-connected pages.
+ *
+ * Uses Page.addScriptToEvaluateOnNewDocument via a CDP session, which is the
+ * CDP equivalent of addInitScript — persists across navigations and runs before
+ * page scripts. This works on reused CDP contexts where addInitScript does not.
+ */
+export async function setupVisualCursorCDP(page: Page): Promise<void> {
+  const cdpSession = await page.context().newCDPSession(page);
+  await cdpSession.send('Page.addScriptToEvaluateOnNewDocument', {
+    source: CURSOR_SCRIPT,
+  });
+  // Also inject immediately for the current page
+  await injectVisualCursor(page);
+  await cdpSession.detach();
+}
+
+/**
  * Programmatically move the visual cursor to coordinates
  */
 export async function moveVisualCursor(page: Page, x: number, y: number): Promise<void> {

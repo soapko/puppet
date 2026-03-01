@@ -57,9 +57,11 @@ export async function janusTab(options: JanusOptions): Promise<Browser> {
   await new Promise(r => setTimeout(r, 1000));
 
   // Connect via CDP, find the page by URL
+  // Default showCursor to true since Janus panels are visible on screen
   const { apiUrl: _a, cdpUrl: _c, url: _u, ...sessionOpts } = options;
   const browser = await puppet({
     ...sessionOpts,
+    showCursor: sessionOpts.showCursor ?? true,
     cdp: cdpUrl,
     cdpPageUrl: options.url,
   });
