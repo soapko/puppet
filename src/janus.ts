@@ -11,6 +11,14 @@ import type { SessionOptions } from './types.js';
 const JANUS_API = 'http://localhost:9223';
 const JANUS_CDP = 'http://localhost:9222';
 
+/** Resolve windowId from explicit option or JANUS_WINDOW_ID env var */
+function resolveWindowId(explicit?: number): number | undefined {
+  if (explicit != null) return explicit;
+  const env = process.env.JANUS_WINDOW_ID;
+  if (env) return parseInt(env, 10);
+  return undefined;
+}
+
 export interface JanusOptions extends Omit<SessionOptions, 'cdp'> {
   /** Janus HTTP API URL. Default: http://localhost:9223 */
   apiUrl?: string;
@@ -18,6 +26,8 @@ export interface JanusOptions extends Omit<SessionOptions, 'cdp'> {
   cdpUrl?: string;
   /** URL to open in new web tab */
   url: string;
+  /** Target Janus window ID. Auto-read from JANUS_WINDOW_ID env var if not set. */
+  windowId?: number;
 }
 
 export interface JanusTab {
@@ -39,12 +49,16 @@ export interface JanusTab {
 export async function janusTab(options: JanusOptions): Promise<Browser> {
   const apiUrl = options.apiUrl || JANUS_API;
   const cdpUrl = options.cdpUrl || JANUS_CDP;
+  const windowId = resolveWindowId(options.windowId);
 
   // Create tab via Janus HTTP API
+  const body: Record<string, unknown> = { url: options.url };
+  if (windowId != null) body.windowId = windowId;
+
   const res = await fetch(`${apiUrl}/api/tabs`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ url: options.url }),
+    body: JSON.stringify(body),
   });
 
   if (!res.ok) {
@@ -58,7 +72,7 @@ export async function janusTab(options: JanusOptions): Promise<Browser> {
 
   // Connect via CDP, find the page by URL
   // Default showCursor to true since Janus panels are visible on screen
-  const { apiUrl: _a, cdpUrl: _c, url: _u, ...sessionOpts } = options;
+  const { apiUrl: _a, cdpUrl: _c, url: _u, windowId: _w, ...sessionOpts } = options;
   const browser = await puppet({
     ...sessionOpts,
     showCursor: sessionOpts.showCursor ?? true,
@@ -75,8 +89,10 @@ export async function janusTab(options: JanusOptions): Promise<Browser> {
 /**
  * List all Janus web tabs
  */
-export async function janusListTabs(apiUrl = JANUS_API): Promise<JanusTab[]> {
-  const res = await fetch(`${apiUrl}/api/tabs`);
+export async function janusListTabs(apiUrl = JANUS_API, windowId?: number): Promise<JanusTab[]> {
+  const wid = resolveWindowId(windowId);
+  const url = wid != null ? `${apiUrl}/api/tabs?windowId=${wid}` : `${apiUrl}/api/tabs`;
+  const res = await fetch(url);
   if (!res.ok) {
     throw new Error(`Failed to list Janus tabs: ${res.status} ${res.statusText}`);
   }
@@ -87,8 +103,21 @@ export async function janusListTabs(apiUrl = JANUS_API): Promise<JanusTab[]> {
 /**
  * Close a Janus web tab
  */
-export async function janusCloseTab(tabId: number, apiUrl = JANUS_API): Promise<void> {
-  const res = await fetch(`${apiUrl}/api/tabs/${tabId}`, { method: 'DELETE' });
+export async function janusCloseTab(
+  tabId: number,
+  apiUrl = JANUS_API,
+  windowId?: number
+): Promise<void> {
+  const wid = resolveWindowId(windowId);
+  const body = wid != null ? JSON.stringify({ windowId: wid }) : undefined;
+  const headers: Record<string, string> = {};
+  if (body) headers['Content-Type'] = 'application/json';
+
+  const res = await fetch(`${apiUrl}/api/tabs/${tabId}`, {
+    method: 'DELETE',
+    headers,
+    body,
+  });
   if (!res.ok) {
     throw new Error(`Failed to close Janus tab ${tabId}: ${res.status} ${res.statusText}`);
   }
@@ -100,12 +129,17 @@ export async function janusCloseTab(tabId: number, apiUrl = JANUS_API): Promise<
 export async function janusNavigateTab(
   tabId: number,
   url: string,
-  apiUrl = JANUS_API
+  apiUrl = JANUS_API,
+  windowId?: number
 ): Promise<void> {
+  const wid = resolveWindowId(windowId);
+  const body: Record<string, unknown> = { url };
+  if (wid != null) body.windowId = wid;
+
   const res = await fetch(`${apiUrl}/api/tabs/${tabId}/navigate`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ url }),
+    body: JSON.stringify(body),
   });
   if (!res.ok) {
     throw new Error(`Failed to navigate Janus tab ${tabId}: ${res.status} ${res.statusText}`);

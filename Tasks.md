@@ -59,7 +59,7 @@
 
 ### Janus Multi-Window Support
 
-- [ ] Window-scoped tab targeting -> [002.feature.25-janus-window-targeting.md](docs/tasks/002.feature.25-janus-window-targeting.md)
+- [✅] Window-scoped tab targeting -> [002.feature.25-janus-window-targeting.md](docs/tasks/002.feature.25-janus-window-targeting.md)
   - `janusTab()` should create web panels in the originating Janus window, not the focused one
   - Requires Janus-side `windowId` support + env var (`JANUS_WINDOW_ID`) from terminal spawning
   - Cross-project: Janus API changes are prerequisite, then puppet reads env var automatically
