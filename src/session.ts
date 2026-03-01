@@ -3,7 +3,7 @@ import { readFile, writeFile, mkdir } from 'fs/promises';
 import { homedir } from 'os';
 import { dirname } from 'path';
 
-import type { Frame } from 'playwright';
+import type { CDPSession, Frame, Page } from 'playwright';
 
 import { getBrowser } from './browser.js';
 import { createCursor } from './cursor.js';
@@ -62,6 +62,127 @@ const log = {
     if (process.env.PUPPET_DEBUG) console.error(`[puppet:session:debug] ${msg}`, ...args);
   },
 };
+
+/** Default timeout for Playwright screenshot before falling back to CDP */
+const CDP_SCREENSHOT_TIMEOUT = 5000;
+
+/**
+ * Take a screenshot that works reliably with CDP connections.
+ *
+ * Playwright's page.screenshot() hangs on Electron webview targets because
+ * document.fonts.ready never resolves. This helper tries Playwright first
+ * with a timeout, then falls back to the CDP Page.captureScreenshot command
+ * which bypasses font waiting entirely.
+ */
+async function cdpSafeScreenshot(
+  page: Page,
+  options: {
+    fullPage?: boolean;
+    clip?: { x: number; y: number; width: number; height: number };
+    path?: string;
+  } = {}
+): Promise<Buffer> {
+  try {
+    return await page.screenshot({
+      fullPage: options.clip ? undefined : options.fullPage,
+      clip: options.clip,
+      path: options.path,
+      timeout: CDP_SCREENSHOT_TIMEOUT,
+    });
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    if (!msg.includes('Timeout') && !msg.includes('timeout')) {
+      throw err; // Re-throw non-timeout errors
+    }
+
+    log.info('Playwright screenshot timed out (font loading), falling back to CDP capture');
+
+    // Fall back to raw CDP screenshot
+    let cdpSession: CDPSession | undefined;
+    try {
+      cdpSession = await page.context().newCDPSession(page);
+      const captureParams: Record<string, unknown> = { format: 'png' };
+
+      if (options.clip) {
+        captureParams.clip = {
+          x: options.clip.x,
+          y: options.clip.y,
+          width: options.clip.width,
+          height: options.clip.height,
+          scale: 1,
+        };
+      } else if (options.fullPage) {
+        // Get full page dimensions
+        const metrics = (await cdpSession.send('Page.getLayoutMetrics')) as {
+          contentSize: { width: number; height: number };
+        };
+        captureParams.clip = {
+          x: 0,
+          y: 0,
+          width: metrics.contentSize.width,
+          height: metrics.contentSize.height,
+          scale: 1,
+        };
+        captureParams.captureBeyondViewport = true;
+      }
+
+      const result = (await cdpSession.send('Page.captureScreenshot', captureParams)) as {
+        data: string;
+      };
+      const buffer = Buffer.from(result.data, 'base64');
+
+      if (options.path) {
+        const { writeFile: writeFileAsync } = await import('fs/promises');
+        await writeFileAsync(options.path, buffer);
+      }
+
+      return buffer;
+    } finally {
+      if (cdpSession) {
+        try {
+          await cdpSession.detach();
+        } catch {
+          // Ignore detach errors
+        }
+      }
+    }
+  }
+}
+
+/**
+ * Take an element screenshot that works reliably with CDP connections.
+ *
+ * Falls back to CDP Page.captureScreenshot with a clip based on the
+ * element's bounding box if Playwright's locator.screenshot() hangs.
+ */
+async function cdpSafeElementScreenshot(
+  page: Page,
+  frame: Frame | Page,
+  selector: string
+): Promise<Buffer> {
+  const element = await frame.locator(selector).first();
+
+  try {
+    return await element.screenshot({ timeout: CDP_SCREENSHOT_TIMEOUT });
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    if (!msg.includes('Timeout') && !msg.includes('timeout')) {
+      throw err;
+    }
+
+    log.info('Playwright element screenshot timed out, falling back to CDP capture');
+
+    // Get bounding box and use CDP clip
+    const box = await element.boundingBox();
+    if (!box) {
+      throw new Error(`Element has no bounding box: ${selector}`);
+    }
+
+    return cdpSafeScreenshot(page, {
+      clip: { x: box.x, y: box.y, width: box.width, height: box.height },
+    });
+  }
+}
 
 /**
  * Start an interactive browser session that watches for commands
@@ -317,17 +438,32 @@ export async function startSession(options: SessionOptions = {}): Promise<Sessio
           let buffer: Buffer;
           if (params.selector) {
             // Element screenshot
-            const element = await currentFrame.locator(params.selector as string).first();
-            buffer = await element.screenshot();
+            if (isCDP) {
+              buffer = await cdpSafeElementScreenshot(
+                page,
+                currentFrame,
+                params.selector as string
+              );
+            } else {
+              const element = await currentFrame.locator(params.selector as string).first();
+              buffer = await element.screenshot();
+            }
           } else {
             // Viewport/region screenshot — clip takes precedence over fullPage
             const clip = params.clip as
               | { x: number; y: number; width: number; height: number }
               | undefined;
-            buffer = await page.screenshot({
-              fullPage: clip ? undefined : (params.fullPage as boolean),
-              clip,
-            });
+            if (isCDP) {
+              buffer = await cdpSafeScreenshot(page, {
+                fullPage: clip ? undefined : (params.fullPage as boolean),
+                clip,
+              });
+            } else {
+              buffer = await page.screenshot({
+                fullPage: clip ? undefined : (params.fullPage as boolean),
+                clip,
+              });
+            }
           }
           result = buffer.toString('base64');
           break;
@@ -821,7 +957,11 @@ export async function startSession(options: SessionOptions = {}): Promise<Sessio
           const timestamp = Date.now();
           screenshotPath = `${FAILURE_SCREENSHOT_DIR}/error-${timestamp}.png`;
           await mkdir(FAILURE_SCREENSHOT_DIR, { recursive: true });
-          await page.screenshot({ path: screenshotPath, fullPage: true });
+          if (isCDP) {
+            await cdpSafeScreenshot(page, { path: screenshotPath, fullPage: true });
+          } else {
+            await page.screenshot({ path: screenshotPath, fullPage: true });
+          }
           log.info(`Failure screenshot saved: ${screenshotPath}`);
         } catch (screenshotErr) {
           log.debug('Failed to capture failure screenshot:', screenshotErr);
