@@ -1048,6 +1048,10 @@ export async function startSession(options: SessionOptions = {}): Promise<Sessio
             }
           }
         }
+        // Mark all tabs as intentionally closing so close handlers don't fire errors
+        for (const tabId of tabs.keys()) {
+          intentionalCloses.add(tabId);
+        }
         await browser.close();
         log.info('Browser closed');
       } catch (err) {
