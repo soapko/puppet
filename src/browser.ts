@@ -1,6 +1,7 @@
 import { chromium } from 'playwright';
 import type { Browser, BrowserContext, Page } from 'playwright';
 
+import { startCDPProxy, type CDPProxy } from './cdp-proxy.js';
 import type { BrowserOptions, BrowserInstance, VideoOptions } from './types.js';
 import { setupVisualCursor } from './visual-cursor.js';
 
@@ -101,7 +102,23 @@ export async function createPage(context: BrowserContext): Promise<Page> {
 }
 
 /**
+ * Check if a CDP endpoint has webview targets that need proxying.
+ */
+async function hasWebviewTargets(cdpUrl: string): Promise<boolean> {
+  try {
+    const resp = await fetch(`${cdpUrl}/json`);
+    const targets = (await resp.json()) as Array<{ type: string }>;
+    return targets.some(t => t.type === 'webview');
+  } catch {
+    return false;
+  }
+}
+
+/**
  * Connect to an existing browser via Chrome DevTools Protocol (CDP)
+ *
+ * Automatically detects Electron webview targets and uses a CDP proxy
+ * to make them accessible as regular Playwright pages.
  *
  * @param cdpUrl - CDP endpoint URL (e.g., 'http://localhost:9222')
  * @param options - Browser options (viewport, userAgent, cdpPageUrl)
@@ -117,7 +134,17 @@ export async function connectCDP(
   cdpUrl: string,
   options: BrowserOptions = {}
 ): Promise<BrowserInstance> {
-  const browser = await chromium.connectOverCDP(cdpUrl);
+  // Check if the CDP endpoint has webview targets (e.g. Electron app)
+  // If so, use a proxy to rewrite webview targets as page targets
+  let proxy: CDPProxy | undefined;
+  let connectUrl = cdpUrl;
+  const needsProxy = await hasWebviewTargets(cdpUrl);
+  if (needsProxy) {
+    proxy = await startCDPProxy(cdpUrl);
+    connectUrl = proxy.url;
+  }
+
+  const browser = await chromium.connectOverCDP(connectUrl);
   const contexts = browser.contexts();
 
   // Reuse existing context or create a new one
@@ -140,7 +167,13 @@ export async function connectCDP(
   }
 
   // No video recording for CDP connections (Playwright limitation)
-  return { browser, context, page, videoEnabled: false };
+  return {
+    browser,
+    context,
+    page,
+    videoEnabled: false,
+    cleanup: proxy ? () => proxy.close() : undefined,
+  };
 }
 
 /**

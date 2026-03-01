@@ -44,6 +44,8 @@ export interface BrowserInstance {
   page: Page;
   /** Whether video recording is enabled */
   videoEnabled: boolean;
+  /** Optional cleanup function called on browser.close() (e.g. shut down CDP proxy) */
+  cleanup?: () => void;
 }
 
 export interface SessionOptions {

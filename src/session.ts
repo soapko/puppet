@@ -89,7 +89,13 @@ export async function startSession(options: SessionOptions = {}): Promise<Sessio
   // Launch browser (or connect via CDP)
   const isCDP = Boolean(options.cdp);
   log.info(isCDP ? `Connecting to browser via CDP: ${options.cdp}` : 'Launching browser...');
-  let { browser, context, page, videoEnabled } = await getBrowser({
+  let {
+    browser,
+    context,
+    page,
+    videoEnabled,
+    cleanup: instanceCleanup,
+  } = await getBrowser({
     headless: options.headless ?? false,
     viewport: options.viewport,
     video: isCDP ? undefined : options.video, // No video for CDP connections
@@ -908,6 +914,11 @@ export async function startSession(options: SessionOptions = {}): Promise<Sessio
         log.debug('Browser already closed or errored during close:', err);
       }
     }
+    // Clean up CDP proxy if active
+    if (instanceCleanup) {
+      instanceCleanup();
+      instanceCleanup = undefined;
+    }
     browserConnected = false;
     await writeStatus(); // Update status file
   }
@@ -990,6 +1001,7 @@ export async function startSession(options: SessionOptions = {}): Promise<Sessio
       context = newInstance.context;
       page = newInstance.page;
       videoEnabled = newInstance.videoEnabled;
+      instanceCleanup = newInstance.cleanup;
       cursor = createCursor(page);
 
       // Reset state
