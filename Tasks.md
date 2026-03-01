@@ -55,6 +55,14 @@
   - `puppet({ cdp: 'http://localhost:9222' })` to connect to existing browser via CDP
   - `janusTab({ url: '...' })` helper to create + automate Janus web panel tabs
   - Tab management: `janusListTabs()`, `janusCloseTab()`, `janusNavigateTab()`
+- [✅] CDP video recording via screencast -> [002.feature.24-cdp-video-recording.md](docs/tasks/002.feature.24-cdp-video-recording.md)
+
+### Janus Multi-Window Support
+
+- [ ] Window-scoped tab targeting -> [002.feature.25-janus-window-targeting.md](docs/tasks/002.feature.25-janus-window-targeting.md)
+  - `janusTab()` should create web panels in the originating Janus window, not the focused one
+  - Requires Janus-side `windowId` support + env var (`JANUS_WINDOW_ID`) from terminal spawning
+  - Cross-project: Janus API changes are prerequisite, then puppet reads env var automatically
 
 ## 003.bugfix
 

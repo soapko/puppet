@@ -2,6 +2,12 @@ import { chromium } from 'playwright';
 import type { Browser, BrowserContext, Page } from 'playwright';
 
 import { startCDPProxy, type CDPProxy } from './cdp-proxy.js';
+import { CDPScreenRecorder } from './cdp-screencast.js';
+import {
+  DirectCDPSession,
+  getDirectCDPSession,
+  type CDPSessionLike,
+} from './direct-cdp-session.js';
 import type { BrowserOptions, BrowserInstance, VideoOptions } from './types.js';
 import { setupVisualCursor, setupVisualCursorCDP } from './visual-cursor.js';
 
@@ -175,21 +181,59 @@ export async function connectCDP(
   // Set up visual cursor via CDP session (persists across navigations)
   // Uses Page.addScriptToEvaluateOnNewDocument — works on reused CDP contexts
   // where context.addInitScript() does not
-  log.debug('connectCDP showCursor option:', options.showCursor);
-  if (options.showCursor) {
+  // Auto-enable cursor when video is requested (same as non-CDP path)
+  const showCursor = options.showCursor || !!options.video;
+  log.debug('connectCDP showCursor option:', showCursor);
+  if (showCursor) {
     log.debug('connectCDP calling setupVisualCursorCDP');
     await setupVisualCursorCDP(page);
   } else {
     log.debug('connectCDP skipping visual cursor (showCursor not set)');
   }
 
-  // No video recording for CDP connections (Playwright limitation)
+  // CDP video recording via screencast → ffmpeg
+  // For webview targets (proxy active), use a direct WS connection to the target
+  // because Electron's browser-level WS doesn't multiplex domain events
+  // (e.g. Page.screencastFrame) back through session multiplexing.
+  const viewport = options.viewport ?? DEFAULT_VIEWPORT;
+  let screenRecorder: CDPScreenRecorder | undefined;
+  let directCDPSession: DirectCDPSession | undefined;
+  const videoOptions = parseVideoOptions(options.video, viewport);
+  if (videoOptions) {
+    let cdpSession: CDPSessionLike;
+    if (needsProxy) {
+      // Direct connection to target's own WS URL — events flow correctly
+      log.debug('Using direct CDP session for screencast (webview target)');
+      const session = await getDirectCDPSession(cdpUrl, page.url());
+      if (session) {
+        directCDPSession = session;
+        cdpSession = session;
+      } else {
+        log.debug('Direct session not found, falling back to Playwright CDP session');
+        cdpSession = (await page.context().newCDPSession(page)) as unknown as CDPSessionLike;
+      }
+    } else {
+      cdpSession = (await page.context().newCDPSession(page)) as unknown as CDPSessionLike;
+    }
+    const outputPath = `${videoOptions.dir}/${Date.now()}.webm`;
+    screenRecorder = new CDPScreenRecorder(cdpSession, {
+      outputPath,
+      fps: 25,
+      quality: 80,
+      maxWidth: viewport.width,
+      maxHeight: viewport.height,
+    });
+    await screenRecorder.start();
+  }
+
   return {
     browser,
     context,
     page,
-    videoEnabled: false,
+    videoEnabled: !!screenRecorder,
     cleanup: proxy ? () => proxy.close() : undefined,
+    screenRecorder,
+    directCDPSession,
   };
 }
 

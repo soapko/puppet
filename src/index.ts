@@ -41,6 +41,10 @@ export { testid, resolveSelector } from './selectors.js';
 export { withRetry, executeWithOptionalRetry } from './retry.js';
 export { getElementErrorContext, formatElementError, isElementNotFoundError } from './errors.js';
 
+// CDP screencast recording
+export { CDPScreenRecorder } from './cdp-screencast.js';
+export type { ScreencastOptions } from './cdp-screencast.js';
+
 // Visual cursor for video recording
 export {
   injectVisualCursor,

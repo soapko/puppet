@@ -1,5 +1,8 @@
 import type { Browser, BrowserContext, Page } from 'playwright';
 
+import type { CDPScreenRecorder } from './cdp-screencast.js';
+import type { DirectCDPSession } from './direct-cdp-session.js';
+
 export interface VideoOptions {
   /** Directory to save videos (default: './videos') */
   dir?: string;
@@ -46,6 +49,10 @@ export interface BrowserInstance {
   videoEnabled: boolean;
   /** Optional cleanup function called on browser.close() (e.g. shut down CDP proxy) */
   cleanup?: () => void;
+  /** CDP screencast recorder (for CDP connections with video enabled) */
+  screenRecorder?: CDPScreenRecorder;
+  /** Direct CDP session for screencast (webview targets) — managed separately from Playwright */
+  directCDPSession?: DirectCDPSession;
 }
 
 export interface SessionOptions {

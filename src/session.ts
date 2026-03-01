@@ -210,20 +210,16 @@ export async function startSession(options: SessionOptions = {}): Promise<Sessio
   // Launch browser (or connect via CDP)
   const isCDP = Boolean(options.cdp);
   log.info(isCDP ? `Connecting to browser via CDP: ${options.cdp}` : 'Launching browser...');
-  let {
-    browser,
-    context,
-    page,
-    videoEnabled,
-    cleanup: instanceCleanup,
-  } = await getBrowser({
+  const browserResult = await getBrowser({
     headless: options.headless ?? false,
     viewport: options.viewport,
-    video: isCDP ? undefined : options.video, // No video for CDP connections
+    video: options.video,
     showCursor: options.showCursor,
     cdp: options.cdp,
     cdpPageUrl: options.cdpPageUrl,
   });
+  let { browser, context, page, videoEnabled, cleanup: instanceCleanup } = browserResult;
+  const { screenRecorder, directCDPSession } = browserResult;
   log.info(
     isCDP ? 'Connected via CDP' : 'Browser launched',
     videoEnabled ? '(video recording enabled)' : ''
@@ -232,6 +228,21 @@ export async function startSession(options: SessionOptions = {}): Promise<Sessio
   let cursor = createCursor(page);
   let running = true;
   let browserConnected = true;
+  let cleaningUp = false;
+
+  // Track when the DirectCDPSession WS disconnects — closing the direct WS
+  // to a page target can cause Electron to close the page, firing Playwright's
+  // page.on('close') event. This flag prevents the tab close handler from
+  // treating it as an unexpected close.
+  let directCDPSessionClosed = false;
+  if (directCDPSession) {
+    directCDPSession.onClose(() => {
+      directCDPSessionClosed = true;
+      log.debug(
+        'DirectCDPSession WS closed — subsequent tab close events will be treated as expected'
+      );
+    });
+  }
 
   // Frame context for iframe support
   let currentFrame: Frame | typeof page = page;
@@ -249,6 +260,19 @@ export async function startSession(options: SessionOptions = {}): Promise<Sessio
       if (intentionalCloses.has(tabId)) {
         intentionalCloses.delete(tabId);
         return; // Intentional close via closeTab command
+      }
+      // During cleanup (running=false), tab closes are expected — don't treat as errors
+      if (!running) {
+        tabs.delete(tabId);
+        return;
+      }
+      // DirectCDPSession WS disconnect can cause Electron to close the page target.
+      // The page is no longer usable, but this isn't an "unexpected" crash — treat
+      // it like an intentional close to avoid crashing the session.
+      if (directCDPSessionClosed) {
+        log.info(`Tab ${tabId} closed after DirectCDPSession disconnect (expected)`);
+        tabs.delete(tabId);
+        return;
       }
       log.info(`Tab ${tabId} closed unexpectedly`);
       tabs.delete(tabId);
@@ -306,6 +330,11 @@ export async function startSession(options: SessionOptions = {}): Promise<Sessio
   function attachEventListeners() {
     // Handle browser disconnect
     browser.on('disconnected', () => {
+      // During cleanup, browser disconnect is expected — don't treat as error
+      if (!running || cleaningUp) {
+        browserConnected = false;
+        return;
+      }
       log.error('Browser disconnected unexpectedly');
       browserConnected = false;
       running = false;
@@ -909,8 +938,11 @@ export async function startSession(options: SessionOptions = {}): Promise<Sessio
         case 'getVideoPath': {
           if (!videoEnabled) {
             result = { enabled: false, path: null };
+          } else if (screenRecorder) {
+            // CDP screencast recording — path is known upfront
+            result = { enabled: true, path: screenRecorder.outputPath };
           } else {
-            // Video path is only available; video file is saved when context closes
+            // Playwright native recording — path available after context close
             const video = page.video();
             if (video) {
               try {
@@ -1000,14 +1032,15 @@ export async function startSession(options: SessionOptions = {}): Promise<Sessio
 
       // Process and write result
       const result = await processCommand(cmd);
-      await writeFile(resultFile, JSON.stringify(result, null, 2));
-      log.debug('Result written to:', resultFile);
 
-      // Handle close command
+      // Handle close command — cleanup before writing result so video is finalized
       if (cmd.action === 'close') {
         log.info('Close command received, shutting down');
         await cleanup();
       }
+
+      await writeFile(resultFile, JSON.stringify(result, null, 2));
+      log.debug('Result written to:', resultFile);
     } catch (err) {
       // Only log actual errors, not parse errors from mid-write
       if (err instanceof SyntaxError) {
@@ -1026,6 +1059,7 @@ export async function startSession(options: SessionOptions = {}): Promise<Sessio
   // Cleanup function
   async function cleanup() {
     log.info('Cleaning up session...');
+    cleaningUp = true;
     running = false;
     if (watcher) {
       watcher.close();
@@ -1034,8 +1068,30 @@ export async function startSession(options: SessionOptions = {}): Promise<Sessio
     // Only try to close browser if it's still connected
     if (browserConnected) {
       try {
-        // If video recording was enabled, save the video path before closing
-        if (videoEnabled) {
+        // Mark all tabs as intentionally closing FIRST so any close events
+        // during screencast stop or browser close don't fire errors
+        for (const tabId of tabs.keys()) {
+          intentionalCloses.add(tabId);
+        }
+        // Stop CDP screencast recorder if active
+        if (screenRecorder) {
+          try {
+            lastVideoPath = await screenRecorder.stop();
+            log.info('CDP video saved:', lastVideoPath);
+          } catch (err) {
+            log.debug('Could not stop screencast recorder:', err);
+          }
+        }
+        // Detach DirectCDPSession WS after screencast is stopped and tabs are marked intentional
+        if (directCDPSession && !directCDPSession.isClosed()) {
+          try {
+            await directCDPSession.detach();
+          } catch {
+            // May already be closed
+          }
+        }
+        // If Playwright video recording was enabled, save the video path before closing
+        if (videoEnabled && !screenRecorder) {
           const video = page.video();
           if (video) {
             try {
@@ -1047,10 +1103,6 @@ export async function startSession(options: SessionOptions = {}): Promise<Sessio
               log.debug('Could not save video path:', err);
             }
           }
-        }
-        // Mark all tabs as intentionally closing so close handlers don't fire errors
-        for (const tabId of tabs.keys()) {
-          intentionalCloses.add(tabId);
         }
         await browser.close();
         log.info('Browser closed');
