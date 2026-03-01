@@ -7,6 +7,13 @@
 
 import type { Page, BrowserContext } from 'playwright';
 
+const log = {
+  debug: (msg: string, ...args: unknown[]) => {
+    if (process.env.PUPPET_DEBUG) console.error(`[puppet:cursor] ${msg}`, ...args);
+  },
+  info: (msg: string, ...args: unknown[]) => console.error(`[puppet:cursor] ${msg}`, ...args),
+};
+
 // SVG cursor icon (macOS-style pointer) - 48x48 for better visibility
 const CURSOR_SVG = `<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24">
   <path fill="#000" stroke="#fff" stroke-width="1" d="M5.5 3.21V20.8l4.86-4.86h6.35L5.5 3.21z"/>
@@ -198,7 +205,14 @@ const CURSOR_SCRIPT = `
  * Inject visual cursor into a page
  */
 export async function injectVisualCursor(page: Page): Promise<void> {
-  await page.addScriptTag({ content: CURSOR_SCRIPT });
+  log.debug('injectVisualCursor called, page url:', page.url());
+  try {
+    await page.addScriptTag({ content: CURSOR_SCRIPT });
+    log.debug('injectVisualCursor succeeded');
+  } catch (err) {
+    log.info('injectVisualCursor FAILED:', err);
+    throw err;
+  }
 }
 
 /**
@@ -217,13 +231,35 @@ export async function setupVisualCursor(context: BrowserContext): Promise<void> 
  * page scripts. This works on reused CDP contexts where addInitScript does not.
  */
 export async function setupVisualCursorCDP(page: Page): Promise<void> {
-  const cdpSession = await page.context().newCDPSession(page);
-  await cdpSession.send('Page.addScriptToEvaluateOnNewDocument', {
-    source: CURSOR_SCRIPT,
-  });
-  // Also inject immediately for the current page
-  await injectVisualCursor(page);
-  await cdpSession.detach();
+  log.debug('setupVisualCursorCDP called, page url:', page.url());
+  try {
+    const cdpSession = await page.context().newCDPSession(page);
+    log.debug('CDP session created, sending Page.addScriptToEvaluateOnNewDocument');
+    await cdpSession.send('Page.addScriptToEvaluateOnNewDocument', {
+      source: CURSOR_SCRIPT,
+    });
+    log.debug('addScriptToEvaluateOnNewDocument succeeded');
+    // Also inject immediately for the current page
+    await injectVisualCursor(page);
+    await cdpSession.detach();
+
+    // Fallback: re-inject on every navigation via Playwright events.
+    // addScriptToEvaluateOnNewDocument doesn't fire through CDP proxies
+    // (e.g. Janus), so this ensures the cursor survives page navigations.
+    page.on('load', async () => {
+      log.debug('page load event — re-injecting visual cursor');
+      try {
+        await injectVisualCursor(page);
+      } catch (err) {
+        log.debug('cursor re-injection on load failed (page may have closed):', err);
+      }
+    });
+
+    log.debug('setupVisualCursorCDP complete');
+  } catch (err) {
+    log.info('setupVisualCursorCDP FAILED:', err);
+    throw err;
+  }
 }
 
 /**

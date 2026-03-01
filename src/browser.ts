@@ -5,6 +5,12 @@ import { startCDPProxy, type CDPProxy } from './cdp-proxy.js';
 import type { BrowserOptions, BrowserInstance, VideoOptions } from './types.js';
 import { setupVisualCursor, setupVisualCursorCDP } from './visual-cursor.js';
 
+const log = {
+  debug: (msg: string, ...args: unknown[]) => {
+    if (process.env.PUPPET_DEBUG) console.error(`[puppet:browser] ${msg}`, ...args);
+  },
+};
+
 /** Default viewport mimicking common desktop resolution */
 const DEFAULT_VIEWPORT = { width: 1440, height: 900 };
 
@@ -169,8 +175,12 @@ export async function connectCDP(
   // Set up visual cursor via CDP session (persists across navigations)
   // Uses Page.addScriptToEvaluateOnNewDocument — works on reused CDP contexts
   // where context.addInitScript() does not
+  log.debug('connectCDP showCursor option:', options.showCursor);
   if (options.showCursor) {
+    log.debug('connectCDP calling setupVisualCursorCDP');
     await setupVisualCursorCDP(page);
+  } else {
+    log.debug('connectCDP skipping visual cursor (showCursor not set)');
   }
 
   // No video recording for CDP connections (Playwright limitation)
