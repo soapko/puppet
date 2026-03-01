@@ -23,6 +23,10 @@ export interface BrowserOptions {
   video?: boolean | VideoOptions;
   /** Show visual cursor overlay. Automatically enabled when video is true. Useful for debugging in headed mode. */
   showCursor?: boolean;
+  /** CDP endpoint URL to connect to instead of launching a browser */
+  cdp?: string;
+  /** When using CDP, select page matching this URL (substring match) */
+  cdpPageUrl?: string;
 }
 
 export interface CursorOptions {
@@ -60,6 +64,10 @@ export interface SessionOptions {
   video?: boolean | VideoOptions;
   /** Show visual cursor overlay. Automatically enabled when video is true. Useful for debugging in headed mode. */
   showCursor?: boolean;
+  /** CDP endpoint URL to connect to instead of launching a browser */
+  cdp?: string;
+  /** When using CDP, select page matching this URL (substring match) */
+  cdpPageUrl?: string;
 }
 
 export type CommandAction =

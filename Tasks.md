@@ -49,6 +49,13 @@
 
 - [✅] Region and element screenshot capture -> [002.feature.22-region-screenshot.md](docs/tasks/002.feature.22-region-screenshot.md)
 
+### External Browser Integration
+
+- [◒] CDP connection mode + Janus integration -> [002.feature.23-cdp-connection-janus.md](docs/tasks/002.feature.23-cdp-connection-janus.md)
+  - `puppet({ cdp: 'http://localhost:9222' })` to connect to existing browser via CDP
+  - `janusTab({ url: '...' })` helper to create + automate Janus web panel tabs
+  - Tab management: `janusListTabs()`, `janusCloseTab()`, `janusNavigateTab()`
+
 ## 003.bugfix
 
 - [✅] Fix session lifecycle and error recovery -> [003.bugfix.01-session-lifecycle.md](docs/tasks/003.bugfix.01-session-lifecycle.md)

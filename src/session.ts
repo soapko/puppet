@@ -86,15 +86,21 @@ export async function startSession(options: SessionOptions = {}): Promise<Sessio
     await writeFile(commandFile, JSON.stringify({ id: '', action: 'noop' }, null, 2));
   }
 
-  // Launch browser
-  log.info('Launching browser...');
+  // Launch browser (or connect via CDP)
+  const isCDP = Boolean(options.cdp);
+  log.info(isCDP ? `Connecting to browser via CDP: ${options.cdp}` : 'Launching browser...');
   let { browser, context, page, videoEnabled } = await getBrowser({
     headless: options.headless ?? false,
     viewport: options.viewport,
-    video: options.video,
+    video: isCDP ? undefined : options.video, // No video for CDP connections
     showCursor: options.showCursor,
+    cdp: options.cdp,
+    cdpPageUrl: options.cdpPageUrl,
   });
-  log.info('Browser launched', videoEnabled ? '(video recording enabled)' : '');
+  log.info(
+    isCDP ? 'Connected via CDP' : 'Browser launched',
+    videoEnabled ? '(video recording enabled)' : ''
+  );
 
   let cursor = createCursor(page);
   let running = true;
@@ -970,13 +976,15 @@ export async function startSession(options: SessionOptions = {}): Promise<Sessio
       // Clean up existing session
       await cleanup();
 
-      // Launch new browser
-      log.info('Launching new browser...');
+      // Launch new browser (or reconnect via CDP)
+      log.info(isCDP ? 'Reconnecting via CDP...' : 'Launching new browser...');
       const newInstance = await getBrowser({
         headless: options.headless ?? false,
         viewport: options.viewport,
-        video: options.video,
+        video: isCDP ? undefined : options.video,
         showCursor: options.showCursor,
+        cdp: options.cdp,
+        cdpPageUrl: options.cdpPageUrl,
       });
       browser = newInstance.browser;
       context = newInstance.context;

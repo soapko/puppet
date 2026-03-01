@@ -101,7 +101,53 @@ export async function createPage(context: BrowserContext): Promise<Page> {
 }
 
 /**
+ * Connect to an existing browser via Chrome DevTools Protocol (CDP)
+ *
+ * @param cdpUrl - CDP endpoint URL (e.g., 'http://localhost:9222')
+ * @param options - Browser options (viewport, userAgent, cdpPageUrl)
+ *
+ * @example
+ * ```typescript
+ * const { browser, page } = await connectCDP('http://localhost:9222');
+ * await page.goto('https://example.com');
+ * // browser.close() disconnects without killing the remote browser
+ * ```
+ */
+export async function connectCDP(
+  cdpUrl: string,
+  options: BrowserOptions = {}
+): Promise<BrowserInstance> {
+  const browser = await chromium.connectOverCDP(cdpUrl);
+  const contexts = browser.contexts();
+
+  // Reuse existing context or create a new one
+  let context: BrowserContext;
+  if (contexts.length > 0) {
+    context = contexts[0];
+  } else {
+    const { viewport = DEFAULT_VIEWPORT, userAgent = DEFAULT_USER_AGENT } = options;
+    context = await browser.newContext({ viewport, userAgent });
+  }
+
+  // Find page matching cdpPageUrl or use first existing page
+  const pages = context.pages();
+  let page: Page;
+  if (options.cdpPageUrl) {
+    const match = pages.find(p => p.url().includes(options.cdpPageUrl!));
+    page = match || pages[0] || (await context.newPage());
+  } else {
+    page = pages[0] || (await context.newPage());
+  }
+
+  // No video recording for CDP connections (Playwright limitation)
+  return { browser, context, page, videoEnabled: false };
+}
+
+/**
  * Convenience function to get a ready-to-use browser, context, and page
+ *
+ * If `options.cdp` is set, connects to an existing browser via CDP instead
+ * of launching a new one.
  *
  * @example
  * ```typescript
@@ -109,6 +155,12 @@ export async function createPage(context: BrowserContext): Promise<Page> {
  * await page.goto('https://example.com');
  * // ... interact with the page
  * await browser.close();
+ * ```
+ *
+ * @example CDP connection
+ * ```typescript
+ * const { browser, page } = await getBrowser({ cdp: 'http://localhost:9222' });
+ * await page.goto('https://example.com');
  * ```
  *
  * @example Video recording
@@ -127,6 +179,12 @@ export async function createPage(context: BrowserContext): Promise<Page> {
  * ```
  */
 export async function getBrowser(options: BrowserOptions = {}): Promise<BrowserInstance> {
+  // CDP connection path
+  if (options.cdp) {
+    return connectCDP(options.cdp, options);
+  }
+
+  // Standard launch path
   const browser = await launchBrowser(options);
   const context = await createContext(browser, options);
   const page = await createPage(context);

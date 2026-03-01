@@ -1,5 +1,5 @@
 // Browser management
-export { launchBrowser, createContext, createPage, getBrowser } from './browser.js';
+export { launchBrowser, createContext, createPage, getBrowser, connectCDP } from './browser.js';
 
 // Human cursor
 export { Cursor, createCursor } from './cursor.js';
@@ -29,6 +29,10 @@ export type { RecordOptions, RecordedEvent, GeneratorOptions } from './recorder/
 
 // Fluent API
 export { puppet, withBrowser, Browser } from './fluent.js';
+
+// Janus integration
+export { janusTab, janusListTabs, janusCloseTab, janusNavigateTab } from './janus.js';
+export type { JanusOptions, JanusTab } from './janus.js';
 
 // Selector utilities
 export { testid, resolveSelector } from './selectors.js';
